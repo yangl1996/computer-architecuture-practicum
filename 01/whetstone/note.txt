@@ -1,0 +1,1 @@
+Compiled with command gcc -pg -static whetstone.c -o bench.out -lm

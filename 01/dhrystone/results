@@ -1,0 +1,7 @@
+cc without register (1000000 passes)
+
+cc with register (1000000 passes)
+
+gcc without register (1000000 passes)
+
+gcc with register (1000000 passes)
