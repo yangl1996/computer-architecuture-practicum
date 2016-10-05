@@ -201,7 +201,9 @@ C	Module 3: Array as parameter
 C
 */
 	for (I = 1; I <= N3; I++)
+	{
 		PA(E1);
+	}
 
 #ifdef PRINTOUT
 	IF (JJ==II)POUT(N3,N2,N2,E1[1],E1[2],E1[3],E1[4]);

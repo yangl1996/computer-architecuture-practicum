@@ -42,7 +42,7 @@ GCCOPTIM=       -O
 LFLAGS=					#Loader Flags
 
 CFLAGS=	$(OPTIMIZE) $(TIME_FUNC) -DHZ=$(HZ) $(ENUMS) $(STRUCTASSIGN) $(CFL)
-GCCFLAGS= -pg -static $(GCCOPTIM) $(TIME_FUNC) -DHZ=$(HZ) $(ENUMS) $(STRUCTASSIGN) $(CFL)
+GCCFLAGS= $(GCCOPTIM) $(TIME_FUNC) -DHZ=$(HZ) $(ENUMS) $(STRUCTASSIGN) $(CFL)
 
 #
 #		You shouldn't need to touch the rest

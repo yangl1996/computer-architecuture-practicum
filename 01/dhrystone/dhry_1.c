@@ -350,7 +350,7 @@ Proc_3 (Ptr_Ref_Par)
 Rec_Pointer *Ptr_Ref_Par;
 
 {
-  if (Ptr_Glob != Null)
+  //if (Ptr_Glob != Null)
     /* then, executed */
     *Ptr_Ref_Par = Ptr_Glob->Ptr_Comp;
   Proc_7 (10, Int_Glob, &Ptr_Glob->variant.var_1.Int_Comp);
