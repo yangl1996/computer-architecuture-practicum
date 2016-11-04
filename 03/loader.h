@@ -10,19 +10,19 @@
  *
  * path: pointer to a string specifying the path of file to load
  *
- * Return value: 1 for success, 0 for failed.
+ * Return value: entry point address for success, 0 for failed.
  */
-int load(const char* path);
+uint64_t load(const char* path);
 
 /*
  * Load an N-bit ELF, these functions should be invoked by load()
  *
  * input_file: pointer to a file object containing the ELF file
  *
- * Return value: 1 for success, 0 for failed
+ * Return value: entry point address for success, 0 for failed
  */
-int load32(FILE* input_file);
-int load64(FILE* input_file);
+uint32_t load32(FILE* input_file);
+uint64_t load64(FILE* input_file);
 
 /*
  * Convert an address in ELF to acutal address
@@ -32,11 +32,13 @@ int load64(FILE* input_file);
  * Return value: a void* pointing to the actual address, or NULL if error
  */
 
-int getptr32(uint32_t addr);
-int getptr64(uint64_t addr);
+void* getptr32(uint32_t addr);
+void* getptr64(uint64_t addr);
 
 /*
  * Clean up spaces occupied by load table and ELF
+ *
+ * Return value: 1 for success (currently will only return 1)
  */
 int cleanup32();
 int cleanup64();

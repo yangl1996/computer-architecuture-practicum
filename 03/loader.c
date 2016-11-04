@@ -5,7 +5,7 @@ Load_table64* loadtable64;
 int loadtable32_num;
 Load_table32* loadtable32;
 
-int load(const char* path)
+uint64_t load(const char* path)
 {
     /* open elf */
     FILE* input_file = fopen(path, "rb");
@@ -30,7 +30,7 @@ int load(const char* path)
         /* check elf bit depth */
         if (elf_magic[EI_CLASS] == ELFCLASS32)
         {
-            return load32(input_file);
+            return (uint64_t)load32(input_file);
         }
         else if (elf_magic[EI_CLASS] == ELFCLASS64)
         {
@@ -41,7 +41,7 @@ int load(const char* path)
     return 0;
 }
 
-int load64(FILE* input_file)
+uint64_t load64(FILE* input_file)
 {
     /* read elf header */
     rewind(input_file);
@@ -85,28 +85,30 @@ int load64(FILE* input_file)
         loadtable64[loadtable64_idx].size = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
         loadtable64[loadtable64_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz);
         /* read file into memory */
-        fread(loadtable64[loadtable64_idx].start_ptr, sizeof(uint8_t), (size_t)program_headers[i].p_memsz, input_file);
+        fread(loadtable64[loadtable64_idx].start_ptr, 1, (size_t)program_headers[i].p_memsz, input_file);
         loadtable64_idx += 1;
     }
     
     /* do cleaning up */
     free(program_headers);
     fclose(input_file);
-    return 1;
+    return elf_header.e_entry;
 }
 
 int cleanup64()
 {
     int i;
+    /* free segments */
     for (i = 0; i < loadtable64_num; i++)
     {
         free(loadtable64[i].start_ptr);
     }
+    /* free load table */
     free(loadtable64);
     return 1;
 }
 
-int load32(FILE* input_file)
+uint32_t load32(FILE* input_file)
 {
     /* read elf header */
     rewind(input_file);
@@ -150,24 +152,57 @@ int load32(FILE* input_file)
         loadtable32[loadtable32_idx].size = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
         loadtable32[loadtable32_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz);
         /* read file into memory */
-        fread(loadtable32[loadtable32_idx].start_ptr, sizeof(uint8_t), (size_t)program_headers[i].p_memsz, input_file);
+        fread(loadtable32[loadtable32_idx].start_ptr, 1, (size_t)program_headers[i].p_memsz, input_file);
         loadtable32_idx += 1;
     }
     
     /* do cleaning up */
     free(program_headers);
     fclose(input_file);
-    return 1;
+    return elf_header.e_entry;
 }
 
 int cleanup32()
 {
     int i;
+    /* free segments */
     for (i = 0; i < loadtable32_num; i++)
     {
         free(loadtable32[i].start_ptr);
     }
+    /* free load table */
     free(loadtable32);
     return 1;
+}
+
+void* getptr64(uint64_t addr)
+{
+    int i;
+    /* we don't handle situations where segments overlap */
+    for (i = 0; i < loadtable64_num; i++)
+    {
+        if ((addr < (loadtable64[i].orig_addr + loadtable64[i].size)) &&
+            (addr >= loadtable64[i].orig_addr))
+        {
+            uint8_t* result = loadtable64[i].start_ptr + (addr - loadtable64[i].orig_addr);
+            return (void*) result;
+        }
+    }
+    return NULL;
+}
+
+void* getptr32(uint32_t addr)
+{
+    int i;
+    for (i = 0; i < loadtable32_num; i++)
+    {
+        if ((addr < (loadtable32[i].orig_addr + loadtable32[i].size)) &&
+            (addr >= loadtable32[i].orig_addr))
+        {
+            uint8_t* result = loadtable32[i].start_ptr + (addr - loadtable32[i].orig_addr);
+            return (void*) result;
+        }
+    }
+    return NULL;
 }
 
