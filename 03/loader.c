@@ -93,6 +93,7 @@ uint64_t load64(FILE* input_file)
             /* not a loadable segment, pass */
             continue;
         }
+        fseek(input_file, program_headers[i].p_offset, SEEK_SET);
         loadtable64[loadtable64_idx].orig_addr = program_headers[i].p_vaddr;
         loadtable64[loadtable64_idx].sz = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
         loadtable64[loadtable64_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz); /* we use memsz to allocate memory */
