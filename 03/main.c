@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
     printf("Program entry point at virtual %llx\n", Rpc);
 #endif
-//    while (1)
-//    {
+    while (1)
+    {
         pc = getptr64(Rpc);
         decode();
-//    }
+    }
     cleanup64();
 }
