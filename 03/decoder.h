@@ -22,7 +22,8 @@
 #define MASK_High32 0xffffffff00000000
 #define MASK_Low32 0xffffffff
 
-int* pc; //PC Register
+unsigned long long Rpc;
+int* pc; //pointer to actual instruction
 long long Reg[32]; //Register File
 long long imm;  //immediate number
 int inst, opcode, rd, rs1, rs2, func3,func7; //different parts of instruction

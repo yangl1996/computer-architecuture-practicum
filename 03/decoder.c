@@ -1,7 +1,9 @@
 #include "decoder.h"
 void decode(){
 #ifdef DEBUG
-    printf("Decoding instruction at %llx\n", pc);
+    printf("Decoding instruction at actual %llx\n", pc);
+    printf("INS 0x%x\n", *pc);
+    printf("OPCODE 0x%x\n", *pc & Mask_op);
 #endif
 	/* get instruction and convert to binary char */
 	inst = *pc;
@@ -11,26 +13,26 @@ void decode(){
 	switch(opcode){
 		case R_op:{
 			R_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case I_op:{
 			I_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case Load_op:{
 			Load_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case Store_op:{
 			Store_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case Branch_op:{
-			Branch_type();
+			Branch_type(); 
 			break;
 		}
 		case JAL_op:{
@@ -47,17 +49,17 @@ void decode(){
 		}
 		case LUI_op:{
 			Reg[rd] = (inst >> 12) << 12;
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case W_R_op:{
 			W_R_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
 		case W_I_op:{
 			W_I_type();
-			pc++;
+			Rpc += 4;
 			break;
 		}
         default:{
@@ -212,38 +214,38 @@ void Branch_type(){
 		/* BEQ */
 		case 0:{
 			if(Reg[rs1] == Reg[rs2])
-				pc = (int *)((long long)pc + imm);
+				Rpc += imm;
 			break;
 		}
 		/* BNE */
 		case 1:{
 			if(Reg[rs1] != Reg[rs2])
-				pc = (int *)((long long)pc + imm);
+				Rpc += imm;
 			break;
 		}
 		/* BLT */
 		case 4:{
 			if(Reg[rs1] < Reg[rs2])
-				pc = (int *)((long long)pc + imm);
+				Rpc += imm;
 			break;
 		}
 		/* BGE */
 		case 5:{
 			if(Reg[rs1] >= Reg[rs2])
-				pc = (int *)((long long)pc + imm);
+				Rpc += imm;
 			break;
 		}
 		/* BLEU */
 		case 6:{
 			if((unsigned long long)Reg[rs1] < (unsigned long long)Reg[rs2])
-				pc = (int *)((long long)pc + imm);
-			break;
+			    Rpc += imm;
+            break;
 		}
 		/* BGEU */
 		case 7:{
 			if((unsigned long long)Reg[rs1] >= (unsigned long long)Reg[rs2])
-				pc = (int *)((long long)pc + imm);
-			break;
+			    Rpc += imm;
+            break;
 		}
 	}
 }
@@ -342,20 +344,20 @@ void JAL(){
 	imm = imm << 1;
 	rd = (inst >> 7) & Mask_Reg;
 	if(rd != 0)
-		Reg[rd] = pc + 1;
-	pc = (int *)((long long)pc + imm);
+		Reg[rd] = Rpc + 4;
+	Rpc += imm;
 }
 void JALR(){
 	rd = (inst >> 7) & Mask_Reg;
 	rs1 = (inst >> 15) & Mask_Reg;
 	imm = inst >> 20;
-	Reg[rd] = pc + 1;
-	pc = ((Reg[rs1] + imm) >> 1) << 1;
+	Reg[rd] = Rpc + 4;
+	Rpc = ((Reg[rs1] + imm) >> 1) << 1;
 }
 void AUIPC(){
 	rd = (inst >> 7) & Mask_Reg;
 	imm = (inst >> 12) << 12;
-	Reg[rd] = pc + imm;
+	Reg[rd] = Rpc + imm * 4;
 }
 void W_R_type(){
 	rd = (inst >> 7) & Mask_Reg;

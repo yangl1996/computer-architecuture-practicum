@@ -9,14 +9,14 @@ int main(int argc, char *argv[])
         printf("Usage: ./riscvemu <executable>\n");
         return 0;
     }
-    uint64_t entry_point_vtul = load(argv[1]);
+    Rpc = load(argv[1]);
 #ifdef DEBUG
-    printf("Program entry point at %llx\n", entry_point_vtul);
+    printf("Program entry point at virtual %llx\n", Rpc);
 #endif
-    pc = getptr64(entry_point_vtul);
-    while (1)
-    {
+//    while (1)
+//    {
+        pc = getptr64(Rpc);
         decode();
-    }
+//    }
     cleanup64();
 }

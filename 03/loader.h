@@ -46,12 +46,12 @@ typedef struct
 {
     uint8_t* start_ptr; /* pointer to the start of segment in host memory */
     Elf64_Addr orig_addr; /* address of the start of segment in ELF */
-    uint64_t size;      /* size of the segment in host memory */
+    uint64_t sz;      /* size of the segment in host memory */
 } Load_table64;
 
 typedef struct
 {
     uint8_t* start_ptr; /* pointer to the start of segment in host memory */
     Elf32_Addr orig_addr; /* address of the start of segment in ELF */
-    uint32_t size;      /* size of the segment in host memory */
+    uint32_t sz;      /* size of the segment in host memory */
 } Load_table32;

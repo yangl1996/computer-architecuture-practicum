@@ -80,6 +80,9 @@ uint64_t load64(FILE* input_file)
             loadtable64_num += 1;
         }
     }
+#ifdef DEBUG
+    printf("Loading %d segments\n", loadtable64_num);
+#endif
     loadtable64 = (Load_table64*) malloc(sizeof(Load_table64) * loadtable64_num);
     /* read program headers and load ELF */
     int loadtable64_idx = 0;
@@ -91,12 +94,22 @@ uint64_t load64(FILE* input_file)
             continue;
         }
         loadtable64[loadtable64_idx].orig_addr = program_headers[i].p_vaddr;
-        loadtable64[loadtable64_idx].size = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
-        loadtable64[loadtable64_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz);
-        /* read file into memory */
-        fread(loadtable64[loadtable64_idx].start_ptr, 1, (size_t)program_headers[i].p_memsz, input_file);
+        loadtable64[loadtable64_idx].sz = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
+        loadtable64[loadtable64_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz); /* we use memsz to allocate memory */
+        /* read file into memory. we use filesz here */
+        fread(loadtable64[loadtable64_idx].start_ptr, 1, (size_t)program_headers[i].p_filesz, input_file);
+#ifdef DEBUG
+        printf("Segment loaded at virtual 0x%llx, host 0x%llx, filesize 0x%llx, memorysize 0x%llx\n",
+                loadtable64[loadtable64_idx].orig_addr,
+                loadtable64[loadtable64_idx].start_ptr,
+                program_headers[i].p_filesz,
+                program_headers[i].p_memsz);
+#endif
         loadtable64_idx += 1;
     }
+#ifdef DEBUG
+    printf("%d segments successfully loaded\n", loadtable64_idx);
+#endif
     
     /* do cleaning up */
     free(program_headers);
@@ -159,7 +172,7 @@ uint32_t load32(FILE* input_file)
             continue;
         }
         loadtable32[loadtable32_idx].orig_addr = program_headers[i].p_vaddr;
-        loadtable32[loadtable32_idx].size = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
+        loadtable32[loadtable32_idx].sz = program_headers[i].p_memsz; /* use memsz since sections like .bss occupies no space in file but the memory must be reserved when loading */
         loadtable32[loadtable32_idx].start_ptr = (uint8_t*) malloc((size_t)program_headers[i].p_memsz);
         /* read file into memory */
         fread(loadtable32[loadtable32_idx].start_ptr, 1, (size_t)program_headers[i].p_memsz, input_file);
@@ -191,7 +204,7 @@ void* getptr64(uint64_t addr)
     /* we don't handle situations where segments overlap */
     for (i = 0; i < loadtable64_num; i++)
     {
-        if ((addr < (loadtable64[i].orig_addr + loadtable64[i].size)) &&
+        if ((addr < (loadtable64[i].orig_addr + loadtable64[i].sz)) &&
             (addr >= loadtable64[i].orig_addr))
         {
             uint8_t* result = loadtable64[i].start_ptr + (addr - loadtable64[i].orig_addr);
@@ -207,7 +220,7 @@ void* getptr32(uint32_t addr)
     int i;
     for (i = 0; i < loadtable32_num; i++)
     {
-        if ((addr < (loadtable32[i].orig_addr + loadtable32[i].size)) &&
+        if ((addr < (loadtable32[i].orig_addr + loadtable32[i].sz)) &&
             (addr >= loadtable32[i].orig_addr))
         {
             uint8_t* result = loadtable32[i].start_ptr + (addr - loadtable32[i].orig_addr);
