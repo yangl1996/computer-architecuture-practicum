@@ -1,5 +1,8 @@
 #include "decoder.h"
 void decode(){
+#ifdef DEBUG
+    printf("Decoding instruction at %llx\n", pc);
+#endif
 	/* get instruction and convert to binary char */
 	inst = *pc;
 	/* get opcode in decimal int */
@@ -57,6 +60,9 @@ void decode(){
 			pc++;
 			break;
 		}
+        default:{
+            printf("Error decoding\n");
+        }
 	}
 }
 void R_type(){
@@ -93,9 +99,9 @@ void R_type(){
 		case 3:{
 			/* special case if rs1 = x0 */
 			if(rs1 == 0 && Reg[rs2] != 0)
-				Reg[rd] = 1
+				Reg[rd] = 1;
 			else if (rs1 == 0 && Reg[rs2] == 0)
-				Reg[rd] = 0
+				Reg[rd] = 0;
 			else if((unsigned long long)Reg[rs1] < (unsigned long long)Reg[rs2])
 				Reg[rd] = 1;
 			else
@@ -190,7 +196,7 @@ void I_type(){
 	}
 }
 void Branch_type(){
-	func3 = (inst >> 12) & Mask_func
+	func3 = (inst >> 12) & Mask_func3;
 	rs1 = (inst >> 15) & Mask_Reg;
 	rs2 = (inst >> 20) & Mask_Reg;
 	/* get imm */
@@ -282,7 +288,7 @@ void Load_type(){
 			break;
 		}
 		/* LWU */
-		case 5:{
+		case 6:{
 			tmp = *((unsigned int*)address);
 			Reg[rd] = tmp;
 			break;
@@ -398,7 +404,7 @@ void W_I_type(){
 	switch(func3){
 		/* ADDIW */
 		case 0:{
-			Reg[rd] = ((Reg[rs1] + imm) << 32) >> 32；
+			Reg[rd] = ((Reg[rs1] + imm) << 32) >> 32;
 			break;
 		}
 		/* SLLIW */

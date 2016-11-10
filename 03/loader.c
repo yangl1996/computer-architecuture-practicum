@@ -12,6 +12,7 @@ uint64_t load(const char* path)
     if (!input_file)
     {
         /* failed to open file */
+        printf("Error opening file\n");
         fclose(input_file);
         return 0;
     }
@@ -20,12 +21,18 @@ uint64_t load(const char* path)
     unsigned char elf_magic[EI_NIDENT];
     fread((void *)elf_magic, sizeof(unsigned char) * EI_NIDENT, 1, input_file);
     /* sanity checks */
-    if (elf_magic[EI_MAG0] == ELFMAG0 &&
-        elf_magic[EI_MAG1] == ELFMAG1 &&
-        elf_magic[EI_MAG2] == ELFMAG2 &&
-        elf_magic[EI_MAG3] == ELFMAG3 &&
-        elf_magic[EI_DATA] == ELFDATA2LSB &&
-        elf_magic[EI_OSABI] == ELFOSABI_LINUX)
+#ifdef DEBUG
+    int local_iter = 0;
+    for (local_iter = 0; local_iter < EI_NIDENT; local_iter++)
+    {
+        printf("%x ", elf_magic[local_iter]);
+    }
+    printf("\n");
+#endif
+    if (elf_magic[EI_MAG0] == 0x7f &&
+        elf_magic[EI_MAG1] == 0x45 &&
+        elf_magic[EI_MAG2] == 0x4c &&
+        elf_magic[EI_MAG3] == 0x46)
     {
         /* check elf bit depth */
         if (elf_magic[EI_CLASS] == ELFCLASS32)
@@ -38,6 +45,7 @@ uint64_t load(const char* path)
         }
     }
     fclose(input_file);
+    printf("Error loading ELF\n");
     return 0;
 }
 
@@ -51,6 +59,7 @@ uint64_t load64(FILE* input_file)
     /* sanity check */
     if (elf_header.e_type != ET_EXEC)
     {
+        printf("Invalid ELF, exiting\n");
         fclose(input_file);
         return 0;
     }
@@ -118,6 +127,7 @@ uint32_t load32(FILE* input_file)
     /* sanity check */
     if (elf_header.e_type != ET_EXEC)
     {
+        printf("Invalid ELF file, exiting\n");
         fclose(input_file);
         return 0;
     }
@@ -188,6 +198,7 @@ void* getptr64(uint64_t addr)
             return (void*) result;
         }
     }
+    printf("Invalid virtual memory address\n");
     return NULL;
 }
 
@@ -203,6 +214,7 @@ void* getptr32(uint32_t addr)
             return (void*) result;
         }
     }
+    printf("Invalid virtual memory address\n");
     return NULL;
 }
 
