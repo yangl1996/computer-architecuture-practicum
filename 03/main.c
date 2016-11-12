@@ -10,6 +10,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     Rpc = load(argv[1]);
+    unsigned long long entry = Rpc;
 #ifdef DEBUG
     printf("Program entry point at virtual %llx\n", Rpc);
 #endif
