@@ -124,8 +124,11 @@ void R_type(){
 	switch(func3){
 		/* ADD and SUB */
 		case 0:{
-			if(func7 == 0)
+			if(func7 == 0){
+				printf("	Reg[rs1] in ADD: %llx\n",Reg[rs1]);
 				Reg[rd] = Reg[rs1] + Reg[rs2];
+				printf("	Reg[rd] after ADD: %llx\n",Reg[rd]);
+			}
 			else
 				Reg[rd] = Reg[rs1] - Reg[rs2];
 			break;
@@ -191,17 +194,19 @@ void I_type(){
 	switch(func3){
 		/* ADDI */
 		case 0:{
-			printf("rs1 in ADDI: %d\n", rs1);
-			printf("Reg[rs1] in ADDI: %llx\n",Reg[rs1]);
-			printf("imm in ADDI: %llx\n",imm);
+			// printf("rs1 in ADDI: %d\n", rs1);
+			 printf("	Reg[rs1] in ADDI: %llx\n",Reg[rs1]);
+			// printf("imm in ADDI: %llx\n",imm);
 			Reg[rd] = Reg[rs1] + imm;
-			printf("rd in ADDI: %d\n", rd);
-			printf("Reg[rd] after ADDI: %llx\n",Reg[rd]);
+			// printf("rd in ADDI: %d\n", rd);
+			 printf("	Reg[rd] after ADDI: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLLI */
 		case 1:{
 			Reg[rd] = Reg[rs1] << shift;
+			printf("	Reg[rs1] after SLLI: %llx\n",Reg[rs1]);
+			printf("	Reg[rd] after SLLI: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLTI */
@@ -326,10 +331,10 @@ void Branch_type(){
 void Load_type(){
 	imm = inst >> 20;
 	long long* address = (long long*)(Reg[rs1] + imm);
-	printf("rs1 in Load: %d\n",rs1);
-	printf("Reg[rs1] in Load: %llx\n",Reg[rs1]);
+	// printf("rs1 in Load: %d\n",rs1);
+	// printf("Reg[rs1] in Load: %llx\n",Reg[rs1]);
 	//printf("imm in Load: %llx\n", imm);
-	printf("virtual address in Load: %llx\n", address);
+	// printf("virtual address in Load: %llx\n", address);
 	address = getptr64(address);
 	unsigned long long tmp;
 	switch(func3){
@@ -354,8 +359,8 @@ void Load_type(){
 		/* LD */
 		case 3:{
 			Reg[rd] = *address;
-			printf("rd after LD: %d\n",rd);
-			printf("Reg[rd] after LD: %llx\n",Reg[rd]);
+			// printf("rd after LD: %d\n",rd);
+			 printf("	Reg[rd] after LD: %llx\n",Reg[rd]);
 			break;
 		}
 		/* LBU */
@@ -451,31 +456,29 @@ void AUIPC(){
 	// printf("Reg[rd] after AUIPC: %llx\n",Reg[rd]);
 }
 void W_R_type(){
-	long long a = Reg[rs1] & MASK_Low32;
-	long long b = Reg[rs2] & MASK_Low32;
+	int a = Reg[rs1];
+	int b = Reg[rs2];
 	int shift = Reg[rs2] & 0x1f;
 	switch(func3){
 		/* ADDW and SUBW */
 		case 0:{
 			if(func7 == 0)
-				Reg[rd] = ((a + b) << 32) >> 32;
+				Reg[rd] = a + b;
 			else
-				Reg[rd] = ((a - b) << 32) >> 32;
+				Reg[rd] = a - b;
 			break;
 		}
 		/* SLLW */
 		case 1:{
-			Reg[rd] = Reg[rd] & MASK_High32 + (a << shift) & MASK_Low32;
+			Reg[rd] = a << shift;
 			break;
 		}
 		/* SRLW and SRAW */
 		case 5:{
 			if(func7 == 0)
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			else{
-				a = (a << 32) >> 32;
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			}
+				Reg[rd] = (int)((unsigned)a >> shift);
+			else
+				Reg[rd] = a >> shift;
 			break;
 		}
 		default:{
@@ -484,29 +487,29 @@ void W_R_type(){
 	}
 }
 void W_I_type(){
-	long long a = Reg[rs1] & MASK_Low32;
-	imm = inst >> 20;
-	imm = imm & MASK_Low32;
+	int a = Reg[rs1];
+	int tmp = inst >> 20;
 	int shift = (inst >> 20) & 0x1f;
 	switch(func3){
 		/* ADDIW */
 		case 0:{
-			Reg[rd] = ((Reg[rs1] + imm) << 32) >> 32;
+			Reg[rd] = a + tmp;
+			//printf("	Reg[rs1] after ADDIW: %llx\n",Reg[rs1]);
+			printf("	Reg[rd] after ADDIW: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLLIW */
 		case 1:{
-			Reg[rd] = Reg[rd] & MASK_High32 + (a << shift) & MASK_Low32;
+			Reg[rd] = a << shift;
+			printf("	Reg[rd] after SLLIW: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SRLIW and SRAIW */
 		case 5:{
 			if(func7 == 0)
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			else{
-				a = (a << 32) >> 32;
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			}
+				Reg[rd] = (int)((unsigned)a >> shift);
+			else
+				Reg[rd] = a >> shift;
 			break;
 		}
 		default:{
