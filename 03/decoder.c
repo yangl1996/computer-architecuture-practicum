@@ -3,7 +3,7 @@ void decode(){
 #ifdef DEBUG
     //printf("Decoding instruction at actual %llx\n", pc);
     printf("INS 0x%x\n", *pc);
-    printf("OPCODE 0x%x\n", *pc & Mask_op);
+    //printf("OPCODE 0x%x\n", *pc & Mask_op);
 #endif
 	/* get instruction and convert to binary char */
 	inst = *pc;
@@ -61,7 +61,8 @@ void decode(){
 			break;
 		}
 		case LUI_op:{
-			Reg[rd] = (inst >> 12) << 12;
+			int imm = inst & 0xfffff000;
+			Reg[rd] = imm;
 			Rpc += 4;
 			break;
 		}
@@ -184,12 +185,18 @@ void R_type(){
 	}
 }
 void I_type(){
-	imm = inst >> 20;
+	int tmp = inst >> 20;
+	imm = tmp;
 	int shift = (inst >> 20) & 0x3f;
 	switch(func3){
 		/* ADDI */
 		case 0:{
+			printf("rs1 in ADDI: %d\n", rs1);
+			printf("Reg[rs1] in ADDI: %llx\n",Reg[rs1]);
+			printf("imm in ADDI: %llx\n",imm);
 			Reg[rd] = Reg[rs1] + imm;
+			printf("rd in ADDI: %d\n", rd);
+			printf("Reg[rd] after ADDI: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLLI */
@@ -221,8 +228,13 @@ void I_type(){
 		/* SRLI and SRAI */
 		case 5:{
 			/* SRAI */
-			if(func7 != 0)
+			if(func7 != 0){
 				Reg[rd] = Reg[rs1] >> shift;
+
+				// printf("Reg[rs1] after SRAI:%llx\n",Reg[rs1]);
+				// printf("Reg[rd] after SRAI:%llx\n",Reg[rd]);
+				// printf("rd after SRAI:%d\n",rd);
+			}
 			/* SRLI */
 			else
 				Reg[rd] = (unsigned long long)Reg[rs1] >> shift;
@@ -256,6 +268,10 @@ void Branch_type(){
 	switch(func3){
 		/* BEQ */
 		case 0:{
+			// printf("    Reg[rs1] in BEQ: %llx\n",Reg[rs1]);
+			// printf("    Reg[rs2] in BEQ: %llx\n",Reg[rs2]);
+			// printf("    rs1 after SRAI:%d\n",rs1);
+			// printf("    rs2 after SRAI:%d\n",rs2);
 			if(Reg[rs1] == Reg[rs2])
 				Rpc += imm;
 			else
@@ -310,6 +326,10 @@ void Branch_type(){
 void Load_type(){
 	imm = inst >> 20;
 	long long* address = (long long*)(Reg[rs1] + imm);
+	printf("rs1 in Load: %d\n",rs1);
+	printf("Reg[rs1] in Load: %llx\n",Reg[rs1]);
+	//printf("imm in Load: %llx\n", imm);
+	printf("virtual address in Load: %llx\n", address);
 	address = getptr64(address);
 	unsigned long long tmp;
 	switch(func3){
@@ -320,6 +340,9 @@ void Load_type(){
 		}
 		/* LH  */
 		case 1:{
+			// printf("Reg[rs1] in LW: %llx",Reg[rs1]);
+			// printf("imm in LW: %llx\n", imm);
+			// printf("address in LW: %llx\n", address);
 			Reg[rd] = *((short*)address);
 			break;
 		}
@@ -331,6 +354,8 @@ void Load_type(){
 		/* LD */
 		case 3:{
 			Reg[rd] = *address;
+			printf("rd after LD: %d\n",rd);
+			printf("Reg[rd] after LD: %llx\n",Reg[rd]);
 			break;
 		}
 		/* LBU */
@@ -388,6 +413,7 @@ void Store_type(){
 			long long* address4 = (long long*)(Reg[rs1] + imm);
 			address4 = getptr64(address4);
 			*address4 = Reg[rs2];
+			printf("rs2 in SD: %llx\n",Reg[rs2]);
 			break;
 		}
 		default:{
@@ -411,7 +437,8 @@ void JAL(){
 }
 void JALR(){
 	imm = inst >> 20;
-	Reg[rd] = Rpc + 4;
+	if(rd != 0)
+		Reg[rd] = Rpc + 4;
 	Rpc = ((Reg[rs1] + imm) >> 1) << 1;
 	// printf("Rpc after JALR: %llx\n",Rpc);
 }

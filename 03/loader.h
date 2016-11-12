@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define StackSize 0x5000
-#define StackPointerPos 0xffffffffffffffff
+#define StackPointerPos 0x0000000042dcdb50
 /*
  * Load an ELF file
  *
