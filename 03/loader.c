@@ -4,7 +4,7 @@ int loadtable64_num;
 Load_table64* loadtable64;
 int loadtable32_num;
 Load_table32* loadtable32;
-
+Stack mystack;
 uint64_t load(const char* path)
 {
     /* open elf */
@@ -111,7 +111,20 @@ uint64_t load64(FILE* input_file)
 #ifdef DEBUG
     printf("%d segments successfully loaded\n", loadtable64_idx);
 #endif
-    
+
+
+    /* Load Stack */
+    mystack.sz = StackSize * 16;
+    mystack.stack_pointer = StackPointerPos;
+    mystack.start_ptr = (uint8_t*)calloc(16, (size_t)StackSize);
+#ifdef DEBUG
+        printf("Stack loaded at host 0x%llx, stack pointer 0x%llx, stacksize 0x%llx\n",
+                mystack.start_ptr,
+                mystack.stack_pointer,
+                mystack.sz);
+        printf("Stack successfully loaded!\n");
+#endif
+
     /* do cleaning up */
     free(program_headers);
     fclose(input_file);
@@ -135,11 +148,11 @@ uint32_t load32(FILE* input_file)
 {
     /* read elf header */
     rewind(input_file);
-    Elf32_Ehdr elf_header;
-    fread(&elf_header, sizeof(Elf32_Ehdr), 1, input_file);
+    Elf32_Ehdr elf_header32;
+    fread(&elf_header32, sizeof(Elf32_Ehdr), 1, input_file);
  
     /* sanity check */
-    if (elf_header.e_type != ET_EXEC)
+    if (elf_header32.e_type != ET_EXEC)
     {
         printf("Invalid ELF file, exiting\n");
         fclose(input_file);
@@ -147,15 +160,15 @@ uint32_t load32(FILE* input_file)
     }
 
     /* read program header */
-    fseek(input_file, (long int)elf_header.e_phoff, SEEK_SET);
-    Elf32_Phdr* program_headers = (Elf32_Phdr*) malloc((size_t)(elf_header.e_phentsize * elf_header.e_phnum));
-    fread(program_headers, (size_t)(elf_header.e_phentsize), (size_t)(elf_header.e_phnum), input_file);
+    fseek(input_file, (long int)elf_header32.e_phoff, SEEK_SET);
+    Elf32_Phdr* program_headers = (Elf32_Phdr*) malloc((size_t)(elf_header32.e_phentsize * elf_header32.e_phnum));
+    fread(program_headers, (size_t)(elf_header32.e_phentsize), (size_t)(elf_header32.e_phnum), input_file);
     
     /* allocate memory for ELF segments */
     int i;
     loadtable32_num = 0;
     /* check how many segments are loadable */
-    for (i = 0; i < elf_header.e_phnum; i++)
+    for (i = 0; i < elf_header32.e_phnum; i++)
     {
         if (program_headers[i].p_type == PT_LOAD)
         {
@@ -165,7 +178,7 @@ uint32_t load32(FILE* input_file)
     loadtable32 = (Load_table32*) malloc(sizeof(Load_table32) * loadtable32_num);
     /* read program headers and load ELF */
     int loadtable32_idx = 0;
-    for (i = 0; i < elf_header.e_phnum; i++)
+    for (i = 0; i < elf_header32.e_phnum; i++)
     {
         if (program_headers[i].p_type != PT_LOAD)
         {
@@ -183,7 +196,7 @@ uint32_t load32(FILE* input_file)
     /* do cleaning up */
     free(program_headers);
     fclose(input_file);
-    return elf_header.e_entry;
+    return elf_header32.e_entry;
 }
 
 int cleanup32()
@@ -201,17 +214,27 @@ int cleanup32()
 
 void* getptr64(uint64_t addr)
 {
+#ifdef DEBUG
+    printf("virtual address: %llx\n", addr);
+#endif
     int i;
+    uint8_t* result;
     /* we don't handle situations where segments overlap */
     for (i = 0; i < loadtable64_num; i++)
     {
         if ((addr < (loadtable64[i].orig_addr + loadtable64[i].sz)) &&
             (addr >= loadtable64[i].orig_addr))
         {
-            uint8_t* result = loadtable64[i].start_ptr + (addr - loadtable64[i].orig_addr);
+            result = loadtable64[i].start_ptr + (addr - loadtable64[i].orig_addr);
+            //printf("virtual address in segment\n");
             return (void*) result;
         }
     }
+    if((addr > mystack.stack_pointer - mystack.sz) && (addr <= mystack.stack_pointer)){
+        result = mystack.start_ptr + (mystack.stack_pointer - addr);
+        //printf("virtual address in stack\n");
+        return (void*) result;
+    } 
     printf("Invalid virtual memory address\n");
     return NULL;
 }

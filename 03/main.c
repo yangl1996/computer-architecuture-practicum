@@ -10,6 +10,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     Rpc = load(argv[1]);
+    Reg[2] = 0x0000000042dcdb50; //initialize stack pointer sp
 #ifdef DEBUG
     printf("Program entry point at virtual %llx\n", Rpc);
 #endif
