@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-lm -I. -std=c99 -DDEBUG 
+CFLAGS=-I. -std=c99 -DDEBUG
 DEPS=decoder.h loader.h
 
 %.o: %.c $(DEPS) ; $(CC) -c -o $@ $< $(CFLAGS)
