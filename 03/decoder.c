@@ -1,18 +1,30 @@
 #include "decoder.h"
 void decode(){
 #ifdef DEBUG
-    printf("Decoding instruction at actual %llx\n", pc);
-    printf("INS 0x%x\n", *pc);
-    printf("OPCODE 0x%x\n", *pc & Mask_op);
+    //printf("Decoding instruction at actual %llx\n", pc);
+    printf("instruction at virtual address 0x%llx: INS 0x%x\n", Rpc,*pc);
+    //printf("OPCODE 0x%x\n", *pc & Mask_op);
 #endif
 	/* get instruction and convert to binary char */
 	inst = *pc;
-	/* get opcode in decimal int */
+	/* get different parts in decimal int */
 	opcode = inst & Mask_op;
+	rd = (inst >> 7) & Mask_Reg;
+	func3 = (inst >> 12) & Mask_func3;
+	rs1 = (inst >> 15) & Mask_Reg;
+	rs2 = (inst >> 20) & Mask_Reg;
+	func7 = (inst >> 25) & Mask_func7;
+	rm = (inst >> 12) & Mask_func3;
+	fmt = (inst >> 25) & 0x3;
+	func5 = (inst >> 27) & Mask_Reg;
+	rs3 =  (inst >> 27) & Mask_Reg;
 	/* different cases for opcode*/
 	switch(opcode){
 		case R_op:{
-			R_type();
+			if(func7 != 1)
+				R_type();
+			else
+				Mul_Div_type();
 			Rpc += 4;
 			break;
 		}
@@ -45,15 +57,20 @@ void decode(){
 		}
 		case AUIPC_op:{
 			AUIPC();
+			Rpc += 4;
 			break;
 		}
 		case LUI_op:{
-			Reg[rd] = (inst >> 12) << 12;
+			int imm = inst & 0xfffff000;
+			Reg[rd] = imm;
 			Rpc += 4;
 			break;
 		}
 		case W_R_op:{
-			W_R_type();
+			if(func7 != 1)
+				W_R_type();
+			else
+				Mul_Div_64_type();
 			Rpc += 4;
 			break;
 		}
@@ -62,24 +79,61 @@ void decode(){
 			Rpc += 4;
 			break;
 		}
+		case F_Load_op:{
+			F_Load();
+			Rpc += 4;
+			break;
+		}
+		case F_Store_op:{
+			F_Store();
+			Rpc += 4;
+			break;
+		}
+		case F_op:{
+			F_type();
+			Rpc += 4;
+			break;
+		}
+		case FMADD_op:{
+			FMADD();
+			Rpc += 4;
+			break;
+		}
+		case FMSUB_op:{
+			FMSUB();
+			Rpc += 4;
+			break;
+		}
+		case FNMADD_op:{
+			FNMADD();
+			Rpc += 4;
+			break;
+		}
+		case FNMSUB_op:{
+			FNMSUB();
+			Rpc += 4;
+			break;
+		}
+		case Ecall_op:{
+			Ecall();
+			Rpc += 4;
+			break;
+		} 
         default:{
             printf("Error decoding\n");
         }
 	}
 }
 void R_type(){
-	/* decode for R_type */
-	rd = (inst >> 7) & Mask_Reg;
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
-	rs2 = (inst >> 20) & Mask_Reg;
-	func7 = (inst >> 25) & Mask_func7;
 	int shift = Reg[rs2] & 0x3f;
 	switch(func3){
 		/* ADD and SUB */
 		case 0:{
-			if(func7 == 0)
+			if(func7 == 0){
+				//printf("	Reg[rs1] in ADD: %llx\n",Reg[rs1]);
 				Reg[rd] = Reg[rs1] + Reg[rs2];
+				//printf("	Reg[rd] after ADD: %llx\n",Reg[rd]);
+			}
 			else
 				Reg[rd] = Reg[rs1] - Reg[rs2];
 			break;
@@ -99,12 +153,7 @@ void R_type(){
 		}
 		/* SLTU */
 		case 3:{
-			/* special case if rs1 = x0 */
-			if(rs1 == 0 && Reg[rs2] != 0)
-				Reg[rd] = 1;
-			else if (rs1 == 0 && Reg[rs2] == 0)
-				Reg[rd] = 0;
-			else if((unsigned long long)Reg[rs1] < (unsigned long long)Reg[rs2])
+			if((unsigned long long)Reg[rs1] < (unsigned long long)Reg[rs2])
 				Reg[rd] = 1;
 			else
 				Reg[rd] = 0;
@@ -133,25 +182,31 @@ void R_type(){
 			Reg[rd] = Reg[rs1] & Reg[rs2];
 			break;
 		}
+		default:{
+            printf("Error decoding R_type\n");
+        }
 	}
 }
 void I_type(){
-	/* decode for I_type */
-	rd = (inst >> 7) & Mask_Reg;
-	rs1 = (inst >> 15) & Mask_Reg;
-	func3 = (inst >> 12) & Mask_func3;
-	func7 = (inst >> 25) & Mask_func7;
-	imm = inst >> 20;
+	int tmp = inst >> 20;
+	imm = tmp;
 	int shift = (inst >> 20) & 0x3f;
 	switch(func3){
 		/* ADDI */
 		case 0:{
+			// printf("rs1 in ADDI: %d\n", rs1);
+			 printf("	Reg[rs1] in ADDI: %llx\n",Reg[rs1],rs1);
+			// printf("imm in ADDI: %llx\n",imm);
 			Reg[rd] = Reg[rs1] + imm;
+			// printf("rd in ADDI: %d\n", rd);
+			 printf("	Reg[rd] after ADDI: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLLI */
 		case 1:{
 			Reg[rd] = Reg[rs1] << shift;
+			//printf("	Reg[rs1] after SLLI: %llx\n",Reg[rs1]);
+			//printf("	Reg[rd] after SLLI: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLTI */
@@ -178,8 +233,13 @@ void I_type(){
 		/* SRLI and SRAI */
 		case 5:{
 			/* SRAI */
-			if(func7 != 0)
+			if(func7 != 0){
 				Reg[rd] = Reg[rs1] >> shift;
+
+				// printf("Reg[rs1] after SRAI:%llx\n",Reg[rs1]);
+				// printf("Reg[rd] after SRAI:%llx\n",Reg[rd]);
+				// printf("rd after SRAI:%d\n",rd);
+			}
 			/* SRLI */
 			else
 				Reg[rd] = (unsigned long long)Reg[rs1] >> shift;
@@ -195,12 +255,12 @@ void I_type(){
 			Reg[rd] = Reg[rs1] & imm;
 			break;
 		}
+		default:{
+            printf("Error decoding I_type\n");
+        }
 	}
 }
 void Branch_type(){
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
-	rs2 = (inst >> 20) & Mask_Reg;
 	/* get imm */
 	imm = (inst >> 8) & 0xf;
 	imm += ((inst >> 25) & 0x3f) << 4;
@@ -213,48 +273,69 @@ void Branch_type(){
 	switch(func3){
 		/* BEQ */
 		case 0:{
+			// printf("    Reg[rs1] in BEQ: %llx\n",Reg[rs1]);
+			// printf("    Reg[rs2] in BEQ: %llx\n",Reg[rs2]);
+			// printf("    rs1 after SRAI:%d\n",rs1);
+			// printf("    rs2 after SRAI:%d\n",rs2);
 			if(Reg[rs1] == Reg[rs2])
 				Rpc += imm;
+			else
+				Rpc += 4;
 			break;
 		}
 		/* BNE */
 		case 1:{
 			if(Reg[rs1] != Reg[rs2])
 				Rpc += imm;
+			else
+				Rpc += 4;
 			break;
 		}
 		/* BLT */
 		case 4:{
 			if(Reg[rs1] < Reg[rs2])
 				Rpc += imm;
+			else
+				Rpc += 4;
 			break;
 		}
 		/* BGE */
 		case 5:{
 			if(Reg[rs1] >= Reg[rs2])
 				Rpc += imm;
+			else
+				Rpc += 4;
 			break;
 		}
-		/* BLEU */
+		/* BLTU */
 		case 6:{
 			if((unsigned long long)Reg[rs1] < (unsigned long long)Reg[rs2])
 			    Rpc += imm;
+			else
+				Rpc += 4;
             break;
 		}
 		/* BGEU */
 		case 7:{
 			if((unsigned long long)Reg[rs1] >= (unsigned long long)Reg[rs2])
 			    Rpc += imm;
+			else
+				Rpc += 4;
             break;
 		}
+		default:{
+            printf("Error decoding Branch_type\n");
+        }
 	}
 }
 void Load_type(){
-	rd = (inst >> 7) & Mask_Reg;
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
 	imm = inst >> 20;
 	long long* address = (long long*)(Reg[rs1] + imm);
+	// printf("rs1 in Load: %d\n",rs1);
+	// printf("Reg[rs1] in Load: %llx\n",Reg[rs1]);
+	//printf("imm in Load: %llx\n", imm);
+	// printf("virtual address in Load: %llx\n", address);
+	address = getptr64(address);
 	unsigned long long tmp;
 	switch(func3){
 		/* LB  */
@@ -264,6 +345,9 @@ void Load_type(){
 		}
 		/* LH  */
 		case 1:{
+			// printf("Reg[rs1] in LW: %llx",Reg[rs1]);
+			// printf("imm in LW: %llx\n", imm);
+			// printf("address in LW: %llx\n", address);
 			Reg[rd] = *((short*)address);
 			break;
 		}
@@ -275,6 +359,8 @@ void Load_type(){
 		/* LD */
 		case 3:{
 			Reg[rd] = *address;
+			// printf("rd after LD: %d\n",rd);
+			printf("	Reg[rd] after LD: %llx\n",Reg[rd]);
 			break;
 		}
 		/* LBU */
@@ -295,12 +381,12 @@ void Load_type(){
 			Reg[rd] = tmp;
 			break;
 		}
+		default:{
+            printf("Error decoding Load_type\n");
+        }
 	}
 }
 void Store_type(){
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
-	rs2 = (inst >> 20) & Mask_Reg;
 	/* get imm and turn into sign extention */
 	imm = (inst >> 7) & 0x1f;
 	imm += ((inst >> 25) & 0x7f) << 5;
@@ -309,119 +395,673 @@ void Store_type(){
 		/* SB */
 		case 0:{
 			char* address1 = (char*)(Reg[rs1] + imm);
+			address1 = getptr64(address1);
 			*address1 = Reg[rs2];
 			break;
 		}
 		/* SH */
 		case 1:{
 			short* address2 = (short*)(Reg[rs1] + imm);
+			address2 = getptr64(address2);
 			*address2 = Reg[rs2];
 			break;
 		}
 		/* SW */
 		case 2:{
 			int* address3 = (int*)(Reg[rs1] + imm);
+			address3 = getptr64(address3);
 			*address3 = Reg[rs2];
 			break;
 		}
 		/* SD */
 		case 3:{
-			long long* address3 = (long long*)(Reg[rs1] + imm);
-			*address3 = Reg[rs2];
+			long long* address4 = (long long*)(Reg[rs1] + imm);
+			address4 = getptr64(address4);
+			*address4 = Reg[rs2];
+			//printf("rs2 in SD: %llx\n",Reg[rs2]);
 			break;
 		}
+		default:{
+            printf("Error decoding Store_type\n");
+        }
 	}
 }
 void JAL(){
 	/* get imm */
 	imm = (inst >> 21) & 0x3ff;
 	imm += ((inst >> 20) & 0x1) << 10;
-	imm += ((inst >> 12) & 0xff) << 18;
+	imm += ((inst >> 12) & 0xff) << 11;
 	imm += ((inst >> 31) & 0x1) << 19;
 	/* turn imm into sign extension */
 	imm = (imm << 44) >> 44;
 	/* multiple 2 */
 	imm = imm << 1;
-	rd = (inst >> 7) & Mask_Reg;
 	if(rd != 0)
 		Reg[rd] = Rpc + 4;
 	Rpc += imm;
 }
 void JALR(){
-	rd = (inst >> 7) & Mask_Reg;
-	rs1 = (inst >> 15) & Mask_Reg;
 	imm = inst >> 20;
-	Reg[rd] = Rpc + 4;
+	if(rd != 0)
+		Reg[rd] = Rpc + 4;
 	Rpc = ((Reg[rs1] + imm) >> 1) << 1;
+	// printf("Rpc after JALR: %llx\n",Rpc);
 }
 void AUIPC(){
-	rd = (inst >> 7) & Mask_Reg;
-	imm = (inst >> 12) << 12;
-	Reg[rd] = Rpc + imm * 4;
+	int tmp = inst & 0xfffff000;
+	imm = tmp;
+	Reg[rd] = Rpc + imm;
+	// printf("imm in AUIPC: %llx\n", imm);
+	// printf("Rpc in AUIPC: %llx\n", Rpc);
+	// printf("Reg[rd] after AUIPC: %llx\n",Reg[rd]);
 }
 void W_R_type(){
-	rd = (inst >> 7) & Mask_Reg;
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
-	rs2 = (inst >> 20) & Mask_Reg;
-	func7 = (inst >> 25) & Mask_func7;
-	long long a = Reg[rs1] & MASK_Low32;
-	long long b = Reg[rs2] & MASK_Low32;
+	int a = Reg[rs1];
+	int b = Reg[rs2];
 	int shift = Reg[rs2] & 0x1f;
 	switch(func3){
 		/* ADDW and SUBW */
 		case 0:{
 			if(func7 == 0)
-				Reg[rd] = ((a + b) << 32) >> 32;
+				Reg[rd] = a + b;
 			else
-				Reg[rd] = ((a - b) << 32) >> 32;
+				Reg[rd] = a - b;
 			break;
 		}
 		/* SLLW */
 		case 1:{
-			Reg[rd] = Reg[rd] & MASK_High32 + (a << shift) & MASK_Low32;
+			Reg[rd] = a << shift;
 			break;
 		}
 		/* SRLW and SRAW */
 		case 5:{
 			if(func7 == 0)
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			else{
-				a = (a << 32) >> 32;
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			}
+				Reg[rd] = (int)((unsigned)a >> shift);
+			else
+				Reg[rd] = a >> shift;
 			break;
 		}
+		default:{
+            printf("Error decoding W_R_type\n");
+        }
 	}
 }
 void W_I_type(){
-	rd = (inst >> 7) & Mask_Reg;
-	func3 = (inst >> 12) & Mask_func3;
-	rs1 = (inst >> 15) & Mask_Reg;
-	func7 = (inst >> 25) & Mask_func7;
-	long long a = Reg[rs1] & MASK_Low32;
-	imm = inst >> 20;
-	imm = imm & MASK_Low32;
+	int a = Reg[rs1];
+	int tmp = inst >> 20;
 	int shift = (inst >> 20) & 0x1f;
 	switch(func3){
 		/* ADDIW */
 		case 0:{
-			Reg[rd] = ((Reg[rs1] + imm) << 32) >> 32;
+			Reg[rd] = a + tmp;
+			//printf("	Reg[rs1] after ADDIW: %llx\n",Reg[rs1]);
+			//printf("	Reg[rd] after ADDIW: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SLLIW */
 		case 1:{
-			Reg[rd] = Reg[rd] & MASK_High32 + (a << shift) & MASK_Low32;
+			Reg[rd] = a << shift;
+			//printf("	Reg[rd] after SLLIW: %llx\n",Reg[rd]);
 			break;
 		}
 		/* SRLIW and SRAIW */
 		case 5:{
 			if(func7 == 0)
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
-			else{
-				a = (a << 32) >> 32;
-				Reg[rd] = Reg[rd] & MASK_High32 + (a >> shift) & MASK_Low32;
+				Reg[rd] = (int)((unsigned)a >> shift);
+			else
+				Reg[rd] = a >> shift;
+			break;
+		}
+		default:{
+            printf("Error decoding W_I_type\n");
+        }
+	}
+}
+void Mul_Div_type(){
+	unsigned long long a0,a1,b0,b1, a_x_b_low, a_x_b_mid, b_x_a_mid, a_x_b_high;
+	unsigned long long tmp, carry;
+	a0 = Reg[rs1] & MASK_Low32;
+	a1 = (Reg[rs1] & MASK_High32) >> 32;
+	b0 = Reg[rs2] & MASK_Low32;
+	b1 = (Reg[rs2] & MASK_High32) >> 32; 
+	switch(func3){
+		/* MUL */
+		case 0:{
+			Reg[rd] = Reg[rs1] * Reg[rs2];
+			break;
+		}
+		/* MULH */
+		case 1:{
+
+			break;
+		}
+		/* MULHSU */
+		case 2:{
+
+			break;
+		}
+		/* MULHU */
+		case 3:{
+			a_x_b_low = a0 * b0;
+			a_x_b_mid = a1 * b0;
+			b_x_a_mid = b1 * a0;
+			a_x_b_high = a1 * b1;
+			carry = (a_x_b_low >> 32) + (a_x_b_mid & MASK_Low32) + (b_x_a_mid & MASK_Low32);
+			carry = carry >> 32;
+			Reg[rd] = (a_x_b_mid >> 32) + (b_x_a_mid >> 32) + (a_x_b_high & MASK_Low32) + carry;
+			Reg[rd] += (a_x_b_high & MASK_High32);
+			break;
+		}
+		/* DIV */
+		case 4:{
+			Reg[rd] = Reg[rs1] / Reg[rs2];
+			break;
+		}
+		/* DIVU */
+		case 5:{
+			tmp = (unsigned long long)Reg[rs1] / (unsigned long long)Reg[rs2];
+			Reg[rd] = tmp;
+			break;
+		}
+		/* REM */
+		case 6:{
+			Reg[rd] = Reg[rs1] % Reg[rs2];
+			break;
+		}
+		/* REMU */
+		case 7:{
+		    tmp = (unsigned long long)Reg[rs1] % (unsigned long long)Reg[rs2];
+			Reg[rd] = tmp;
+			break;
+		}
+		default:{
+            printf("Error decoding Mul_Div_type\n");
+        }
+	}
+}
+void Mul_Div_64_type(){
+	int a0 = Reg[rs1];
+	int b0 = Reg[rs2];
+	int tmp;
+	switch(func3){
+		/* MULW */
+		case 0:{
+			Reg[rd] = a0 * b0;
+			break;
+		}
+		/* DIVW */
+		case 4:{
+			Reg[rd] = a0 / b0;
+			break;
+		}
+		/* DIVUW */
+		case 5:{
+			tmp = (unsigned)a0 / (unsigned)b0;
+			Reg[rd] = tmp;
+			break;
+		}
+		/* REMW */
+		case 6:{
+			Reg[rd] = a0 % b0;
+			break;
+		}
+		/* REMUW */
+		case 7:{
+			tmp = (unsigned)a0 % (unsigned)b0;
+			Reg[rd] = tmp;
+			break;
+		}
+		default:{
+            printf("Error decoding Mul_Div_64_type\n");
+        }
+	}
+}
+void F_Load(){
+	imm = inst >> 20;
+	switch(rm){
+		/* FLW */
+		case 2:{
+			float* address1 = (float*)(Reg[rs1] + imm);
+			address1 = getptr64(address1);
+			f_Reg[rd] = *address1;
+			break;
+		}
+		/* FLD */
+		case 3:{
+			double* address2 = (double*)(Reg[rs1] + imm);
+			address2 = getptr64(address2);
+			d_Reg[rd] = *address2;
+			break;
+		}
+		default:{
+            printf("Error decoding F_Load\n");
+        }
+	}
+}
+void F_Store(){
+	imm = (inst >> 7) & 0x1f;
+	imm += ((inst >> 25) & 0x7f) << 5;
+	imm = (imm << 52) >> 52;
+	switch(rm){
+		/* FSW */
+		case 2:{
+			float* address1 = (float*)(Reg[rs1] + imm);
+			address1 = getptr64(address1);
+			*address1 = Reg[rs2];
+			break;
+		}
+		/* FSD */
+		case 3:{
+			double* address2 = (double*)(Reg[rs1] + imm);
+			address2 = getptr64(address2);
+			*address2 = Reg[rs2];
+			break;
+		}
+		default:{
+            printf("Error decoding F_Store\n");
+        }
+	}
+}
+void F_type(){
+	switch(func5){
+		/* FADD.S and FADD.D */
+		case 0:{
+			if(fmt == 0)
+				f_Reg[rd] = f_Reg[rs1] + f_Reg[rs2];
+			else
+				d_Reg[rd] = d_Reg[rs1] + d_Reg[rs2];
+			break;
+		}
+		/* FSUB.S and FSUB.D */
+		case 1:{
+			if(fmt == 0)
+				f_Reg[rd] = f_Reg[rs1] - f_Reg[rs2];
+			else
+				d_Reg[rd] = d_Reg[rs1] - d_Reg[rs2];
+			break;
+		}
+		/* FMUL.S and FMUL.D */
+		case 2:{
+			if(fmt == 0)
+				f_Reg[rd] = f_Reg[rs1] * f_Reg[rs2];
+			else
+				d_Reg[rd] = d_Reg[rs1] * d_Reg[rs2];
+			break;
+		}
+		/* FDIV.S and FDIV.D */
+		case 3:{
+			if(fmt == 0)
+				f_Reg[rd] = f_Reg[rs1] / f_Reg[rs2];
+			else
+				d_Reg[rd] = d_Reg[rs1] / d_Reg[rs2];
+			break;
+		}
+		/* FSGNJ.S, FSGNJN.S, FSGNJX.S, FSGNJ.D, FSGNJN.D, FSGNJX.D*/
+		case 4:{
+			float tmp1 = f_Reg[rs1], tmp2 = f_Reg[rs2];
+			int i_rs1 = *(int*)(&tmp1);
+			int i_rs2 = *(int*)(&tmp2);
+			int res;
+			double tmp3 = d_Reg[rs1], tmp4 = d_Reg[rs2];
+			long long ll_rs1 = *(long long*)(&tmp3);
+			long long ll_rs2 = *(long long*)(&tmp4);
+			long long ll_res;
+			/* FSGNJ.S, FSGNJN.S, FSGNJX.S */
+			if(fmt == 0){
+				if(rm == 0){
+					res = (i_rs2 & MASK_f32) + (i_rs1 & MASK_f31_0);
+					f_Reg[rd] = *(float*)(&res);
+				}
+				else if(rm == 1){
+					res = ((~i_rs2) & MASK_f32) + (i_rs1 & MASK_f31_0);
+					f_Reg[rd] = *(float*)(&res);
+				}
+				else{
+					res = ((i_rs1 ^ i_rs2) & MASK_f32) + (i_rs1 & MASK_f31_0);
+					f_Reg[rd] = *(float*)(&res);
+				}
 			}
+			/*FSGNJ.D, FSGNJN.D, FSGNJX.D*/
+			else{
+				if(rm == 0){
+					ll_res = (ll_rs2 & MASK_f64) + (ll_rs1 & MASK_f63_0);
+					d_Reg[rd] = *(double*)(&ll_res);
+				}
+				else if(rm == 1){
+					ll_res = ((~ll_rs2) & MASK_f64) + (ll_rs1 & MASK_f63_0);
+					d_Reg[rd] = *(double*)(&ll_res);
+				}
+				else{
+					ll_res = ((ll_rs1 ^ ll_rs2) & MASK_f64) + (ll_rs1 & MASK_f63_0);
+					d_Reg[rd] = *(double*)(&ll_res);
+				}
+			}
+			break;
+		}
+		/* FMIN.S, FMIN.D, FMAX.S, FMAX.D  */
+		case 5:{
+			if(fmt == 0){
+				if (rm == 0)
+					f_Reg[rd] = f_Reg[rs1] < f_Reg[rs2]? f_Reg[rs1]:f_Reg[rs2]; //FMIN.S
+				else
+					f_Reg[rd] = f_Reg[rs1] > f_Reg[rs2]? f_Reg[rs1]:f_Reg[rs2]; //FMAX.S
+			}
+			else{
+				if (rm == 0)
+					d_Reg[rd] = d_Reg[rs1] < d_Reg[rs2]? d_Reg[rs1]:d_Reg[rs2]; //FMIN.D
+				else
+					d_Reg[rd] = d_Reg[rs1] > d_Reg[rs2]? d_Reg[rs1]:d_Reg[rs2]; //FMAX.D
+			}
+			break;
+		}
+		/* FCVT.S.D and FCVT.D.S */
+		case 8:{
+			/* FCVT.S.D */
+			if(fmt == 0){
+				f_Reg[rd] = d_Rounding(d_Reg[rs1]);
+			}
+			/* FCVT.D.S */
+			else{
+				d_Reg[rd] = f_Reg[rs1];
+			}
+			break;
+		}
+		/* FSQRT.S and FSQRT.D */
+		case 11:{
+			if(fmt == 0)
+				f_Reg[rd] = sqrtf(f_Reg[rs1]);
+			else
+				d_Reg[rd] = sqrt(d_Reg[rs1]);
+			break;
+		}
+		/* FEQ.S, FLT.S, FLE.S, FEQ.D, FLT.D, FLE.D */
+		case 20:{
+			if(fmt == 0){
+				if(isnan(f_Reg[rs1]) || isnan(f_Reg[rs2]))
+					f_Reg[rd] = 0;
+				else if(rm == 0)
+					f_Reg[rd] = (f_Reg[rs1] <= f_Reg[rs2]);
+				else if(rm == 1)
+					f_Reg[rd] = (f_Reg[rs1] < f_Reg[rs2]);
+				else
+					f_Reg[rd] = (f_Reg[rs1] == f_Reg[rs2]);
+			}
+			else{
+				if(isnan(d_Reg[rs1]) || isnan(d_Reg[rs2]))
+					d_Reg[rd] = 0;
+				else if(rm == 0)
+					d_Reg[rd] = (d_Reg[rs1] <= d_Reg[rs2]);
+				else if(rm == 1)
+					d_Reg[rd] = (d_Reg[rs1] < d_Reg[rs2]);
+				else
+					d_Reg[rd] = (d_Reg[rs1] == d_Reg[rs2]);
+			}
+			break;
+		}
+		/* FCVT.W.S, FCVT.WU.S, FCVT.L.S, FCVT.LU.S, FCVT.W.D, FCVT.WU.D, FCVT.L.D, FCVT.LU.D*/
+		case 24:{
+			if(fmt == 0){
+				switch(rs2){
+					/* FCVT.W.S*/
+					case 0:{
+						int tmp = f_Rounding(f_Reg[rs1]);
+						Reg[rd] = tmp;
+						break;
+					}
+					/* FCVT.WU.S*/
+					case 1:{
+						unsigned int tmp2 = f_Rounding(f_Reg[rs1]);
+						unsigned long long tmp3 = tmp2;
+						Reg[rd] = tmp3;
+						break;
+					}
+					/* FCVT.L.S */
+					case 2:{
+						Reg[rd] = f_Rounding(f_Reg[rs1]);
+						break;
+					}
+					/* FCVT.LU.S */
+					case 3:{
+						unsigned long long tmp7 = f_Rounding(f_Reg[rs1]);
+						Reg[rd] = tmp7;
+						break;
+					}
+				}
+			}
+			else{
+				switch(rs2){
+					/* FCVT.W.D*/
+					case 0:{
+						int tmp4 = d_Rounding(d_Reg[rs1]);
+						Reg[rd] = tmp4;
+						break;
+					}
+					/* FCVT.WU.D*/
+					case 1:{
+						unsigned int tmp5 = d_Rounding(d_Reg[rs1]);
+						unsigned long long tmp6 = tmp5;
+						Reg[rd] = tmp6;
+						break;
+					}
+					/* FCVT.L.D */
+					case 2:{
+						Reg[rd] = d_Rounding(d_Reg[rs1]);
+						break;
+					}
+					/* FCVT.LU.D */
+					case 3:{
+						unsigned long long tmp8 = d_Rounding(d_Reg[rs1]);
+						Reg[rd] = tmp8;
+						break;
+					}
+				}
+			}
+			break;
+		}
+		/* FCVT.S.W, FCVT.S.WU, FCVT.S.L, FCVT.S.LU, FCVT.D.W, FCVT.D.WU, FCVT.D.L, FCVT.D.LU*/
+		case 26:{
+			if(fmt == 0){
+				switch(rs2){
+					/* FCVT.S.W */
+					case 0:{
+						int tmp = Reg[rs1];
+						f_Reg[rd] = tmp;
+						break;
+					}
+					/* FCVT.S.WU */
+					case 1:{
+						unsigned tmp2 = Reg[rs1];
+						f_Reg[rd] = tmp2;
+						break;
+					}
+					/* FCVT.S.L */
+					case 2:{
+						f_Reg[rd] = Reg[rs1];
+						break;
+					}
+					/* FCVT.S.LU */
+					case 3:{
+						unsigned long long tmp5 = Reg[rs1];
+						f_Reg[rd] = tmp5; 
+						break;
+					}
+				}
+			}
+			else{
+				switch(rs2){
+					/* FCVT.D.W */
+					case 0:{
+						int tmp3 = Reg[rs1];
+						d_Reg[rd] = tmp3;
+						break;
+					}
+					/* FCVT.D.WU */
+					case 1:{
+						unsigned tmp4 = Reg[rs1];
+						d_Reg[rd] = tmp4;
+						break;
+					}
+					/* FCVT.D.L */
+					case 2:{
+						d_Reg[rd] = Reg[rs1];
+						break;
+					}
+					/* FCVT.D.LU */
+					case 3:{
+						unsigned long long tmp6 = Reg[rs1];
+						d_Reg[rd] = tmp6;
+						break;
+					}
+				}
+			}
+			break;
+		}
+		/* FMV.X.S and FMV.X.D */
+		case 28:{
+			float f_tmp = f_Reg[rs1];
+			double d_tmp = d_Reg[rs1];
+			if(fmt == 0){
+				int tmp = *(int*)(&f_tmp);
+				Reg[rd] = tmp;
+			}
+			else
+				Reg[rd] = *(long long*)(&d_tmp);
+			break;
+		}
+		/* FMV.S.X and FMV.D.X */
+		case 30:{
+			if(fmt == 0){
+				int tmp = Reg[rs1];
+				f_Reg[rd] = *(float*)(&tmp);
+			}
+			else{
+				long long tmp2 = Reg[rs1];
+				d_Reg[rd] = *(double*)(&tmp2);
+			}
+			break;
+		}
+		default:{
+            printf("Error decoding F_type\n");
+        }
+	}
+}
+void FMADD(){
+	if(fmt == 0)
+		f_Reg[rd] = f_Reg[rs1] * f_Reg[rs2] + f_Reg[rs3];
+	else
+		d_Reg[rd] = d_Reg[rs1] * d_Reg[rs2] + d_Reg[rs3];
+}
+void FMSUB(){
+	if(fmt == 0)
+		f_Reg[rd] = f_Reg[rs1] * f_Reg[rs2] - f_Reg[rs3];
+	else
+		d_Reg[rd] = d_Reg[rs1] * d_Reg[rs2] - d_Reg[rs3];
+}
+void FNMADD(){
+	if(fmt == 0)
+		f_Reg[rd] = -(f_Reg[rs1] * f_Reg[rs2] + f_Reg[rs3]);
+	else
+		d_Reg[rd] = -(d_Reg[rs1] * d_Reg[rs2] + d_Reg[rs3]);
+}
+void FNMSUB(){
+	if(fmt == 0)
+		f_Reg[rd] = -(f_Reg[rs1] * f_Reg[rs2] - f_Reg[rs3]);
+	else
+		d_Reg[rd] = -(d_Reg[rs1] * d_Reg[rs2] - d_Reg[rs3]);
+}
+float f_Rounding(float a){
+	switch(rm){
+		case 0:{
+			return rintf(a);
+			break;
+		}
+		case 1:{
+			return truncf(a);
+			break;
+		}
+		case 2:{
+			return floorf(a); 
+			break;
+		}
+		case 3:{
+			return ceilf(a);
+			break;
+		}
+		default :{
+			return a;
+		}
+	}
+}
+double d_Rounding(double a){
+	switch(rm){
+		case 0:{
+			return rint(a);
+			break;
+		}
+		case 1:{
+			return trunc(a);
+			break;
+		}
+		case 2:{
+			return floor(a); 
+			break;
+		}
+		case 3:{
+			return ceil(a);
+			break;
+		}
+		default :{
+			return a;
+		}
+	}
+}
+void Ecall(){
+	long long a0 = Reg[10];
+	long long a1 = Reg[11];
+	long long a2 = Reg[12];
+	long long a3 = Reg[13];
+	long long a4 = Reg[14];
+	long long a7 = Reg[17];
+	printf("syscall: a7 = %llx, a3 = %llx, a2 = %llx, a1 = %llx a0 = %llx\n",a7,a3,a2,a1,a0);
+	// Reg[10] = syscall(a7,a0,a1,a2,a3,a4);
+	switch(a7){
+		case sys_lseek:{
+			Reg[10] = lseek((int)a0,(off_t)a1,(int)a2);
+			break;
+		}
+		case sys_read:{
+			Reg[10] = read((int)a0,(void*)a1,(size_t)a2);
+			break;
+		}
+		case sys_write:{
+			Reg[10] = write((int)a0,(void*)a1,(size_t)a2);
+			break;
+		}
+		case sys_fstat:{
+			if(a1 == Reg[2] && a2 == 0 && a3 == 0)
+				Reg[10] = isatty((int)a0);
+			else
+				Reg[10] = fstat((int)a0, (struct stat*)a1);
+			break;
+		}
+		case sys_close:{
+			Reg[10] = close((int)a0);
+			break;
+		}
+		case sys_sbrk:{
+			Reg[10] = sbrk((intptr_t)a0);
+			break;
+		}
+		case sys_exit:{
+			exit((int)a0);
+			Exit_flag = 1;
+			break;
+		}
+		case sys_times:{
+			if(a0 == Reg[4] - 1856)
+				Reg[10] = times((struct tms*)a0);
+			else
+				Reg[10] = gettimeofday((struct timeval*)a0,(struct timezone *)a1);
 			break;
 		}
 	}
