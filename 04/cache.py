@@ -139,7 +139,7 @@ class Cache:
         Write to this level
         """
         # calculate set index and tag
-        set_index = (address >> self.block_size_log) & self.set_count
+        set_index = (address >> self.block_size_log) & (self.set_count - 1)
         tag = (address >> self.block_size_log) >> self.set_count_log
         target_set = self.sets[set_index]
         
@@ -182,8 +182,10 @@ class Cache:
         # equalvalent of HandleRequest in template
         # get set index and tag
         # tag | set_index | offset
-        set_index = (address >> self.block_size_log) & self.set_count
+        set_index = (address >> self.block_size_log) & (self.set_count - 1)
         tag = (address >> self.block_size_log) >> self.set_count_log
+        print(self.name)
+        print(set_index)
         target_set = self.sets[set_index]
         
         # test the tag
@@ -210,7 +212,7 @@ class Cache:
                 # no empty slot, have to replace
                 self.replacement_counter += 1
                 # new data will reside in lru slot
-                fetch_destination = find_lru()
+                fetch_destination = target_set.find_lru()
                 if target_set.check_dirty(fetch_destination) is True:
                     # destination is dirty, write back before replacing
                     next_level_latency += self.write_to_next(target_set.lines[fetch_destination].address)

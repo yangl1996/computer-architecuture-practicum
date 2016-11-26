@@ -8,7 +8,7 @@
         "access-latency": 5
     },
     {
-        "name": "L1",
+        "name": "L2",
         "cache-size": 16384,
         "block-size": 8,
         "set-associativity": 8,
