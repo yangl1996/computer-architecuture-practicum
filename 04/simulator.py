@@ -21,14 +21,14 @@ for item in config["arch"]:
 
 for i in range(len(caches) - 1):
     caches[i].next_level = caches[i + 1]
-
+latency = 0
 for line in trace_file:
     (op, add) = line.split("\t")
     add = int(add.rstrip())
     if op == "r":
-        caches[0].read(add)
+        latency += caches[0].read(add)
     elif op == "w":
-        caches[0].write(add)
+        latency += caches[0].write(add)
 trace_file.close()
 
 print("------------ REPORT -------------")
@@ -39,3 +39,5 @@ for item in caches:
     print("Miss: {}".format(item.miss_counter))
     print("Replace: {}".format(item.replacement_counter))
     print("---------------------------------")
+print("Latency: {}".format(latency))
+
