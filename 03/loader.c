@@ -1,10 +1,6 @@
 #include "loader.h"
 
-int loadtable64_num;
-Load_table64* loadtable64;
-int loadtable32_num;
-Load_table32* loadtable32;
-Stack mystack;
+
 uint64_t load(const char* path)
 {
     /* open elf */
@@ -86,6 +82,7 @@ uint64_t load64(FILE* input_file)
     loadtable64 = (Load_table64*) malloc(sizeof(Load_table64) * loadtable64_num);
     /* read program headers and load ELF */
     int loadtable64_idx = 0;
+    heap_start = elf_header.e_entry;
     for (i = 0; i < elf_header.e_phnum; i++)
     {
         if (program_headers[i].p_type != PT_LOAD)
@@ -106,17 +103,17 @@ uint64_t load64(FILE* input_file)
                 program_headers[i].p_filesz,
                 program_headers[i].p_memsz);
 #endif
+        heap_start += program_headers[i].p_filesz;
         loadtable64_idx += 1;
     }
 #ifdef DEBUG
     printf("%d segments successfully loaded\n", loadtable64_idx);
 #endif
 
-
     /* Load Stack */
-    mystack.sz = StackSize * 16;
+    mystack.sz = StackSize;
     mystack.stack_pointer = StackPointerPos;
-    mystack.start_ptr = (uint8_t*)calloc(16, (size_t)StackSize);
+    mystack.start_ptr = (uint8_t*)malloc((size_t)StackSize);
 #ifdef DEBUG
         printf("Stack loaded at host 0x%llx, stack pointer 0x%llx, stacksize 0x%llx\n",
                 mystack.start_ptr,
@@ -125,12 +122,24 @@ uint64_t load64(FILE* input_file)
         printf("Stack successfully loaded!\n");
 #endif
 
+    /* Initialize Heap */
+    myheap.sz = HeapSize;
+    myheap.heap_begin = heap_start;
+    myheap.heap_end = myheap.heap_begin + myheap.sz;
+    myheap.start_ptr = (uint8_t*)malloc((size_t)myheap.sz);
+#ifdef DEBUG
+        printf("Heap loaded at host 0x%llx, Heap begin: 0x%llx, Heap end: 0x%llx, Heap size: 0x%llx\n",
+                myheap.start_ptr,
+                myheap.heap_begin,
+                myheap.heap_end,
+                myheap.sz);
+        printf("Heap successfully loaded!\n");
+#endif
     /* do cleaning up */
     free(program_headers);
     fclose(input_file);
     return elf_header.e_entry;
 }
-
 int cleanup64()
 {
     int i;
@@ -234,8 +243,13 @@ void* getptr64(uint64_t addr)
         result = mystack.start_ptr + (mystack.stack_pointer - addr);
         //printf("virtual address in stack\n");
         return (void*) result;
-    } 
-    printf("Invalid virtual memory address\n");
+    }
+    if(addr >= myheap.heap_begin && addr < myheap.heap_end){
+        result = myheap.start_ptr + (addr - myheap.heap_begin);
+        //printf("virtual address in heap\n");
+        return (void*) result;
+    }
+    printf("Invalid virtual memory address: 0x%llx\n",addr);
     return NULL;
 }
 

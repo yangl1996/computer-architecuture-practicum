@@ -4,8 +4,9 @@
 #include <string.h>
 #include <stdint.h>
 
-#define StackSize 0x5000
-#define StackPointerPos 0x0000000042dcdb50
+#define StackSize 0x3000000
+#define HeapSize 0x3000000
+#define StackPointerPos 0x8000000
 /*
  * Load an ELF file
  *
@@ -64,3 +65,20 @@ typedef struct
     Elf64_Addr stack_pointer; /* address of the pointer of Stack in virtual memory */
     uint64_t sz;      /* size of the Stack in host memory */
 } Stack;
+
+typedef struct
+{
+    uint8_t* start_ptr; /* pointer to the start of Heap in host memory */
+    uint64_t sz;      /* size of the Heap in host memory */
+    Elf64_Addr heap_begin;
+    Elf64_Addr heap_end;
+} Heap;
+
+
+int loadtable64_num;
+Load_table64* loadtable64;
+int loadtable32_num;
+Load_table32* loadtable32;
+Stack mystack;
+Heap myheap;
+Elf64_Addr heap_start;

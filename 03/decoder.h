@@ -4,7 +4,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/times.h>
+#include <sys/time.h>
 #include "loader.h"
 
 /* Opcode for different instructions */
@@ -51,6 +51,7 @@
 #define sys_times 169
 
 int Exit_flag;
+int verbose;
 unsigned long long Rpc;
 int* pc; //pointer to actual instruction
 /* Register File */
@@ -59,6 +60,8 @@ float f_Reg[32];
 double d_Reg[32];
 long long imm;  //immediate number
 int inst, opcode, rd, rs1, rs2, func3, func7, rm, fmt, func5, rs3; //different parts of instruction
+/* name for registers */
+
 
 /* Decode Instructions */
 void decode();

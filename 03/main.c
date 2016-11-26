@@ -11,17 +11,29 @@ int main(int argc, char *argv[])
         return 0;
     }
     Rpc = load(argv[1]);
-    Reg[2] = 0x0000000042dcdb50; //initialize stack pointer sp
+    for(int i = 0;i < 32;i++){
+        Reg[i] = 0;
+        f_Reg[i] = 0;
+        d_Reg[i] = 0;
+    }
+    Exit_flag = 0;
+    Reg[2] = 0x100000; //initialize stack pointer sp
 #ifdef DEBUG
     printf("Program entry point at virtual %llx\n", Rpc);
 #endif
-    Exit_flag  = 0;
+    verbose = 0;
+    int cnt = 0;
     while (1)
     {
         pc = getptr64(Rpc);
         decode();
+        cnt++;
         if(Exit_flag == 1)
             break;
     }
+    //printf("instruction number: %d\n",cnt);
     cleanup64();
+#ifdef DEBUG
+    printf("exit successfully!\n");
+#endif
 }

@@ -1,12 +1,13 @@
 CC=gcc
-CFLAGS=-lm -I. -std=c99 -DDEBUG 
+CFLAGS=-lm -I. -std=c99
 DEPS=decoder.h loader.h
 
 %.o: %.c $(DEPS) ; $(CC) -c -o $@ $< $(CFLAGS)
 
-riscvemu: decoder.o loader.o main.o ; $(CC) -o riscvemu decoder.o loader.o main.o $(CFLAGS)
+riscv: decoder.o loader.o main.o ; $(CC) -o riscv decoder.o loader.o main.o $(CFLAGS) 
 
 .PHONY: clean
 
 clean: ; rm *.o *.out *.gch
+
 
