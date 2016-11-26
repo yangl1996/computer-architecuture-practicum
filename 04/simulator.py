@@ -38,6 +38,7 @@ for item in caches:
     print("Fallback: {}".format(item.next_level_counter))
     print("Miss: {}".format(item.miss_counter))
     print("Replace: {}".format(item.replacement_counter))
+    print("Miss Rate: {}".format(item.miss_counter / item.access_counter))
     print("---------------------------------")
 print("Latency: {}".format(latency))
 

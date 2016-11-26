@@ -1,3 +1,11 @@
+# Usage
+
+Requirement: `python3`
+
+The program reads trace from `trace.txt` in the same directory.
+
+To run the simulator, simple issue `python3 simulator.py`.
+
 # Cache Configuration
 
 ```

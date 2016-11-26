@@ -153,7 +153,7 @@ class Cache:
                 # write THROUGH
                 # write to all levels
                 # just call write_to_next as it does the job recursively
-                return write_to_next(address)
+                return self.write_to_next(address)
             elif self.write_hit == "WB":
                 # write BACK
                 # only write to current level and mark dirty
