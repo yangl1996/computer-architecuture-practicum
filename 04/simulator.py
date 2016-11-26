@@ -30,3 +30,12 @@ for line in trace_file:
     elif op == "w":
         caches[0].write(add)
 trace_file.close()
+
+print("------------ REPORT -------------")
+for item in caches:
+    print("Cache {}".format(item.name))
+    print("Access: {}".format(item.access_counter))
+    print("Fallback: {}".format(item.next_level_counter))
+    print("Miss: {}".format(item.miss_counter))
+    print("Replace: {}".format(item.replacement_counter))
+    print("---------------------------------")

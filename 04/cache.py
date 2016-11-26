@@ -95,6 +95,7 @@ class Cache:
 
         # cache counter
         self.access_counter = 0         # access to this level
+        self.next_level_counter = 0     # access to next level
         self.miss_counter = 0           # miss at this level
         self.replacement_counter = 0    # replacement at this level
 
@@ -161,15 +162,22 @@ class Cache:
                 return self.access_latency
         else:
             # write MISS
-            self.miss_counter += 1
             if self.write_miss == "WA":
                 # write ALLOCATE
                 # just use read() to load the block and retry
-                self.read(address)
+                tot_latency = self.read(address) - self.access_latency
+                self.access_counter -= 1
+                # use read() to allocate the block, no real read operation
+                # intended, so remove one
                 self.write(address)
+                self.access_counter -= 1
+                # use write() to resume write operation after allocating,
+                # there's still only one write operation ongoing
+                return tot_latency
             elif self.write_miss == "NA":
                 # write NO-ALLOCATE
                 # do nothing to the whole cache, write direct into memory
+                self.miss_counter += 1
                 return self.memory_latency
 
 
@@ -184,8 +192,6 @@ class Cache:
         # tag | set_index | offset
         set_index = (address >> self.block_size_log) & (self.set_count - 1)
         tag = (address >> self.block_size_log) >> self.set_count_log
-        print(self.name)
-        print(set_index)
         target_set = self.sets[set_index]
         
         # test the tag
@@ -215,7 +221,9 @@ class Cache:
                 fetch_destination = target_set.find_lru()
                 if target_set.check_dirty(fetch_destination) is True:
                     # destination is dirty, write back before replacing
+                    self.next_level_counter += 1
                     next_level_latency += self.write_to_next(target_set.lines[fetch_destination].address)
+            self.next_level_counter += 1
             next_level_latency += self.read_from_next(address)
             target_set.update_line(fetch_destination, tag, address)
             # update last access time
