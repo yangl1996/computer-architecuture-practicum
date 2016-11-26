@@ -389,6 +389,7 @@ void Load_type(){
 	imm = (long long)imm_tmp;
 	long long address = Reg[rs1] + imm;
 	uint64_t addr = address;
+    fprintf(stderr, "r\t%lld\n", (long long)getptr64(addr));
 	unsigned long long tmp;
 	switch(func3){
 		/* LB  */
@@ -456,7 +457,8 @@ void Store_type(){
 	imm = (imm << 52) >> 52;
 	long long address = Reg[rs1] + imm;
 	uint64_t addr = address;
-	switch(func3){
+    fprintf(stderr, "w\t%lld\n", (long long)getptr64(addr));
+    switch(func3){
 		/* SB */
 		case 0:{
 			if(verbose) 
