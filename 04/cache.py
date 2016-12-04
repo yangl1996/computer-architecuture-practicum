@@ -38,7 +38,7 @@ class CacheSet:
             self.lines[index].fill_in_time = self.filled_lines_number
         #The cache is full
         else:
-            self.fill_in_time = set_width
+            self.fill_in_time = self.width
 
     def lookup(self, tag):
         """
