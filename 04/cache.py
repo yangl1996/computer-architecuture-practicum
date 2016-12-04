@@ -156,6 +156,30 @@ class Cache:
         for i in range(self.set_count):
             self.sets.append(CacheSet(self.set_width))
 
+        self.bypass_status = []
+        for i in range(1024):
+            self.bypass_status.append({"miss_count": 0, 
+                                       "access_count": 0})
+        
+
+    def determine_bypass(self, address):
+        # optimal bypass threshold 1 - hit_latency / next_latency
+        add = address >> 54 # get highest 10 bits
+        status = self.bypass_status[add]
+        if status['access_count'] < 100:
+            return False
+        miss_rate = float(status['miss_count']) / float(status['access_count'])
+        if miss_rate > 0.5:
+            return True
+        else:
+            return False
+
+    def bypass_record(self, address, miss):
+        add = address >> 54
+        self.bypass_status[add]['access_count'] += 1
+        if miss is True:
+            self.bypass_status[add]['miss_count'] += 1
+
     def read_from_next(self, address):
         """
         Read from the next level
@@ -180,6 +204,9 @@ class Cache:
         """
         Write to this level
         """
+        if self.determine_bypass(address) and self.bypass:
+            self.access_counter += 1
+            return self.write_to_next(address) + self.bus_latency
         # calculate set index and tag
         set_index = (address >> self.block_size_log) & (self.set_count - 1)
         tag = (address >> self.block_size_log) >> self.set_count_log
@@ -190,6 +217,7 @@ class Cache:
         self.access_counter += 1
         if tag_lookup_result is not None:
             # write HIT
+            self.bypass_record(address, False)
             if self.write_hit == "WT":
                 # write THROUGH
                 # write to all levels
@@ -203,6 +231,7 @@ class Cache:
                 return self.access_latency
         else:
             # write MISS
+            self.bypass_record(address, True)
             self.miss_counter += 1
             if self.write_miss == "WA":
                 # write ALLOCATE
@@ -229,6 +258,9 @@ class Cache:
         Read from this level
         Returns the latency
         """
+        if self.determine_bypass(address) and self.bypass:
+            self.access_counter += 1
+            return self.read_from_next(address) + self.bus_latency
         # equalvalent of HandleRequest in template
         # get set index and tag
         # tag | set_index | offset
@@ -242,10 +274,12 @@ class Cache:
         if tag_lookup_result is not None:
             # cache HIT
             # update last used time
+            self.bypass_record(address, False)
             target_set.update_access_time(tag_lookup_result)
             return self.access_latency
         else:
             # cache MISS
+            self.bypass_record(address, True)
             self.miss_counter += 1
             # check for empty slot
             empty_find_result = target_set.find_empty()
