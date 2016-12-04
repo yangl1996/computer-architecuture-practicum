@@ -115,7 +115,7 @@ class CacheSet:
 class Cache:
     """ Cache simulator """
     
-    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, memory_latency, next_level=None):
+    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, memory_latency, bypass, next_level=None):
         # sanity checks
         assert size % block_size is 0
         self.block_count = size // block_size    # number of lines
@@ -125,6 +125,7 @@ class Cache:
         assert replacement in ["LRU", "Random","FIFO","LFU"]
         assert write_hit in ["WT", "WB"]
         assert write_miss in ["WA", "NA"]
+        assert bypass in [True, False]
         assert math.log2(block_size).is_integer()
         assert math.log2(self.set_count).is_integer()
         self.set_count_log = int(math.log2(self.set_count))
@@ -149,6 +150,7 @@ class Cache:
         self.bus_latency = bus_latency          # bus latency
         self.memory_latency = memory_latency    # main memory latency
         self.next_level = next_level            # next level cache
+        self.bypass = bypass                    # bypass this cache
         
         self.sets = []
         for i in range(self.set_count):

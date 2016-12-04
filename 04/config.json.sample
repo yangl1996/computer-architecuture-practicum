@@ -6,7 +6,8 @@
         "block-size": 8,
         "set-associativity": 2,
         "hit-latency": 5,
-        "bus-latency": 3
+        "bus-latency": 3,
+        "bypass": true
     },
     {
         "name": "L2",
@@ -14,7 +15,8 @@
         "block-size": 8,
         "set-associativity": 8,
         "hit-latency": 20,
-        "bus-latency": 6
+        "bus-latency": 6,
+        "bypass": false
     }
     ],
     "memory-latency": 100,

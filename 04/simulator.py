@@ -18,7 +18,8 @@ for item in config["arch"]:
                              config['write-miss'],
                              item['bus-latency'],
                              item['hit-latency'],
-                             config['memory-latency']))
+                             config['memory-latency'],
+                             item['bypass']))
 
 for i in range(len(caches) - 1):
     caches[i].next_level = caches[i + 1]
