@@ -2,7 +2,7 @@ import cache
 import json
 
 config_file = open("config.json")
-trace_file = open("trace.txt")
+trace_file = open("2.trace")
 
 config = json.loads(config_file.read())
 config_file.close()
@@ -16,6 +16,8 @@ for item in config["arch"]:
                              config['replacement'],
                              config['write-hit'],
                              config['write-miss'],
+                             item['bus-latency'],
+                             item['hit-latency'],
                              item['access-latency'],
                              config['memory-latency']))
 
@@ -23,8 +25,8 @@ for i in range(len(caches) - 1):
     caches[i].next_level = caches[i + 1]
 latency = 0
 for line in trace_file:
-    (op, add) = line.split("\t")
-    add = int(add.rstrip())
+    (op, add) = line.split()
+    add = int(add,16)
     if op == "r":
         latency += caches[0].read(add)
     elif op == "w":
@@ -38,7 +40,7 @@ for item in caches:
     print("Fallback: {}".format(item.next_level_counter))
     print("Miss: {}".format(item.miss_counter))
     print("Replace: {}".format(item.replacement_counter))
-    print("Miss Rate: {}".format(item.miss_counter / item.access_counter))
+    #print("Cold_Miss: {}".format(item.cold_miss_cnt))
     print("---------------------------------")
 print("Latency: {}".format(latency))
 

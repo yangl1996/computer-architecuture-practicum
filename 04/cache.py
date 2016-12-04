@@ -1,4 +1,5 @@
 import math
+import random
 
 class CacheLine:
     def __init__(self):
@@ -7,6 +8,8 @@ class CacheLine:
         self.valid = False
         self.address = 0
         self.last_access = 0
+        self.fill_in_time = 0
+        self.access_count = 0
 
 
 class CacheSet:
@@ -14,6 +17,7 @@ class CacheSet:
         self.lines = []
         self.width = set_width
         self.clock = 0
+        self.filled_lines_number = 0
         for i in range(set_width):
             self.lines.append(CacheLine())
 
@@ -23,6 +27,18 @@ class CacheSet:
         """
         self.clock += 1
         self.lines[index].last_access = self.clock
+
+    def update_fill_in_time(self, index):
+        """
+        Update fill in time
+        """
+        #New lines are fetched in because of cold miss
+        if self.filled_lines_number < self.width:
+            self.filled_lines_number += 1
+            self.lines[index].fill_in_time = self.filled_lines_number
+        #The cache is full
+        else:
+            self.fill_in_time = set_width
 
     def lookup(self, tag):
         """
@@ -54,6 +70,27 @@ class CacheSet:
                 lru_index = i
         return i
 
+    def find_random(self):
+        """
+        Find the Random line
+        """
+        i = random.randint(0,self.width-1)
+        return i
+    def find_fifo(self):
+        """
+        Find the FIFO line
+        """
+        #Select the earliest one, every line's rank need to forward one
+        for i in range(self.width):
+            self.lines[i].fill_in_time -= 1
+        fifo_time = self.lines[0].fill_in_time
+        fifo_index = 0
+        for i in range(self.width):
+            if self.lines[i].fill_in_time < fifo_time:
+                fifo_time = self.lines[i].fill_in_time
+                fifo_index = i
+        return i
+
     def update_line(self, index, tag, address):
         """
         Update content of a line
@@ -78,14 +115,14 @@ class CacheSet:
 class Cache:
     """ Cache simulator """
     
-    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, access_latency, memory_latency, next_level=None):
+    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, access_latency, memory_latency, next_level=None):
         # sanity checks
         assert size % block_size is 0
         self.block_count = size // block_size    # number of lines
         assert self.block_count % set_width is 0
         self.set_count = self.block_count // set_width # number of sets
         assert block_size >= 8
-        assert replacement in ["LRU"]
+        assert replacement in ["LRU", "Random","FIFO","LFU"]
         assert write_hit in ["WT", "WB"]
         assert write_miss in ["WA", "NA"]
         assert math.log2(block_size).is_integer()
@@ -98,6 +135,7 @@ class Cache:
         self.next_level_counter = 0     # access to next level
         self.miss_counter = 0           # miss at this level
         self.replacement_counter = 0    # replacement at this level
+        #self.cold_miss_cnt = 0
 
         # construct cache
         self.name = name
@@ -107,6 +145,8 @@ class Cache:
         self.replacement = replacement          # replacement policy
         self.write_hit = write_hit              # write hit policy
         self.write_miss = write_miss            # write miss policy
+        self.bus_latency = bus_latency          # bus latency
+        self.hit_latency = hit_latency          # hit latency
         self.access_latency = access_latency    # access latency
         self.memory_latency = memory_latency    # main memory latency
         self.next_level = next_level            # next level cache
@@ -162,14 +202,16 @@ class Cache:
                 return self.access_latency
         else:
             # write MISS
+            self.miss_counter += 1
             if self.write_miss == "WA":
                 # write ALLOCATE
                 # just use read() to load the block and retry
                 tot_latency = self.read(address) - self.access_latency
+                self.miss_counter -= 1
                 self.access_counter -= 1
                 # use read() to allocate the block, no real read operation
                 # intended, so remove one
-                self.write(address)
+                tot_latency += self.write(address)
                 self.access_counter -= 1
                 # use write() to resume write operation after allocating,
                 # there's still only one write operation ongoing
@@ -177,7 +219,6 @@ class Cache:
             elif self.write_miss == "NA":
                 # write NO-ALLOCATE
                 # do nothing to the whole cache, write direct into memory
-                self.miss_counter += 1
                 return self.memory_latency
 
 
@@ -213,12 +254,15 @@ class Cache:
             if empty_find_result is not None:
                 # empty slot available
                 # new data will reside in the empty slot
+                #self.cold_miss_cnt += 1
                 fetch_destination = empty_find_result
             else:
                 # no empty slot, have to replace
                 self.replacement_counter += 1
-                # new data will reside in lru slot
-                fetch_destination = target_set.find_lru()
+                replacement_policy = {'LRU':target_set.find_lru(),
+                                      'Random':target_set.find_random(),
+                                      'FIFO':target_set.find_fifo()}
+                fetch_destination = replacement_policy[self.replacement]
                 if target_set.check_dirty(fetch_destination) is True:
                     # destination is dirty, write back before replacing
                     self.next_level_counter += 1
@@ -228,5 +272,6 @@ class Cache:
             target_set.update_line(fetch_destination, tag, address)
             # update last access time
             target_set.update_access_time(fetch_destination)
+            # update fill in time
+            target_set.update_fill_in_time(fetch_destination)
             return self.access_latency + next_level_latency
-
