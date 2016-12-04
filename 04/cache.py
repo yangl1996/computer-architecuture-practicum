@@ -146,6 +146,7 @@ class Cache:
         self.write_hit = write_hit              # write hit policy
         self.write_miss = write_miss            # write miss policy
         self.access_latency = bus_latency + hit_latency    # access latency
+        self.bus_latency = bus_latency          # bus latency
         self.memory_latency = memory_latency    # main memory latency
         self.next_level = next_level            # next level cache
         
