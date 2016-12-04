@@ -115,7 +115,7 @@ class CacheSet:
 class Cache:
     """ Cache simulator """
     
-    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, access_latency, memory_latency, next_level=None):
+    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, memory_latency, next_level=None):
         # sanity checks
         assert size % block_size is 0
         self.block_count = size // block_size    # number of lines
@@ -145,9 +145,7 @@ class Cache:
         self.replacement = replacement          # replacement policy
         self.write_hit = write_hit              # write hit policy
         self.write_miss = write_miss            # write miss policy
-        self.bus_latency = bus_latency          # bus latency
-        self.hit_latency = hit_latency          # hit latency
-        self.access_latency = access_latency    # access latency
+        self.access_latency = bus_latency + hit_latency    # access latency
         self.memory_latency = memory_latency    # main memory latency
         self.next_level = next_level            # next level cache
         

@@ -5,14 +5,16 @@
         "cache-size": 1024,
         "block-size": 8,
         "set-associativity": 2,
-        "access-latency": 5
+        "hit-latency": 5,
+        "bus-latency": 3
     },
     {
         "name": "L2",
         "cache-size": 16384,
         "block-size": 8,
         "set-associativity": 8,
-        "access-latency": 20
+        "hit-latency": 20,
+        "bus-latency": 6
     }
     ],
     "memory-latency": 100,

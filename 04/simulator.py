@@ -18,7 +18,6 @@ for item in config["arch"]:
                              config['write-miss'],
                              item['bus-latency'],
                              item['hit-latency'],
-                             item['access-latency'],
                              config['memory-latency']))
 
 for i in range(len(caches) - 1):
