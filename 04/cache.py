@@ -230,9 +230,6 @@ class Cache:
         """
         Write to this level
         """
-        if self.determine_bypass(address) and self.bypass:
-            self.access_counter += 1
-            return self.write_to_next(address) + self.bus_latency
         # calculate set index and tag
         set_index = (address >> self.block_size_log) & (self.set_count - 1)
         tag = (address >> self.block_size_log) >> self.set_count_log
@@ -268,6 +265,9 @@ class Cache:
                         #self.read(address + 64*3, True)
                 return self.access_latency
         else:
+            if self.determine_bypass(address) and self.bypass:
+                self.access_counter += 1
+                return self.write_to_next(address) + self.access_latency
             # write MISS
             self.bypass_record(address, True)
             self.miss_counter += 1
@@ -299,9 +299,6 @@ class Cache:
         Read from this level
         Returns the latency
         """
-        if self.determine_bypass(address) and self.bypass:
-            self.access_counter += 1
-            return self.read_from_next(address, prefetchFlag) + self.bus_latency
         # equalvalent of HandleRequest in template
         # get set index and tag
         # tag | set_index | offset
@@ -335,6 +332,9 @@ class Cache:
             return self.access_latency
         else:
             # cache MISS
+            if self.determine_bypass(address) and self.bypass:
+                self.access_counter += 1
+                return self.read_from_next(address, prefetchFlag) + self.bus_latency
             self.bypass_record(address, True)
             if prefetchFlag == False:
                 self.miss_counter += 1

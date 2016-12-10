@@ -2,25 +2,30 @@
     "arch": [   
     {
         "name": "L1",
-        "cache-size": 1024,
-        "block-size": 8,
-        "set-associativity": 2,
-        "hit-latency": 5,
-        "bus-latency": 3,
+        "cache-size": 32768,
+        "block-size": 64,
+        "set-associativity": 8,
+        "bus-latency": 0,
+        "hit-latency": 4,
+        "replacement": "LRU",
+        "prefetching": "Miss",
+        "access-latency": 4,
         "bypass": true
     },
     {
         "name": "L2",
-        "cache-size": 16384,
-        "block-size": 8,
+        "cache-size": 262144,
+        "block-size": 64,
         "set-associativity": 8,
-        "hit-latency": 20,
         "bus-latency": 6,
+        "hit-latency": 5,
+        "replacement": "LRU",
+        "prefetching": "Miss",
+        "access-latency": 11, 
         "bypass": false
     }
     ],
     "memory-latency": 100,
-    "replacement": "LRU",
     "write-hit": "WB",
     "write-miss": "WA"
 }
