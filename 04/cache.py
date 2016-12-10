@@ -301,7 +301,7 @@ class Cache:
         """
         if self.determine_bypass(address) and self.bypass:
             self.access_counter += 1
-            return self.read_from_next(address) + self.bus_latency
+            return self.read_from_next(address, prefetchFlag) + self.bus_latency
         # equalvalent of HandleRequest in template
         # get set index and tag
         # tag | set_index | offset
