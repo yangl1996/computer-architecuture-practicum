@@ -10,6 +10,7 @@ class CacheLine:
         self.last_access = 0
         self.fill_in_time = 0
         self.access_count = 0
+        self.prefetchtag = 0
 
 
 class CacheSet:
@@ -27,6 +28,15 @@ class CacheSet:
         """
         self.clock += 1
         self.lines[index].last_access = self.clock
+
+    def update_access_count(self, index, hit):
+        """
+        Update last access access count
+        """
+        if hit == True:
+            self.lines[index].access_count += 1
+        else:
+            self.lines[index].access_count = 1
 
     def update_fill_in_time(self, index):
         """
@@ -76,6 +86,7 @@ class CacheSet:
         """
         i = random.randint(0,self.width-1)
         return i
+
     def find_fifo(self):
         """
         Find the FIFO line
@@ -89,6 +100,18 @@ class CacheSet:
             if self.lines[i].fill_in_time < fifo_time:
                 fifo_time = self.lines[i].fill_in_time
                 fifo_index = i
+        return i
+
+    def find_lfu(self):
+        """
+        Find the LFU line
+        """
+        lfu_cnt = self.lines[0].access_count
+        lfu_index = 0
+        for i in range(self.width):
+            if self.lines[i].access_count < lfu_cnt:
+                lfu_cnt = self.lines[i].access_count
+                lfu_index = i
         return i
 
     def update_line(self, index, tag, address):
@@ -115,7 +138,7 @@ class CacheSet:
 class Cache:
     """ Cache simulator """
     
-    def __init__(self, name, size, block_size, set_width, replacement, write_hit, write_miss, bus_latency, hit_latency, memory_latency, bypass, next_level=None):
+    def __init__(self, name, size, block_size, set_width, replacement, prefetching, write_hit, write_miss, bus_latency, hit_latency, access_latency, memory_latency, bypass, next_level=None):
         # sanity checks
         assert size % block_size is 0
         self.block_count = size // block_size    # number of lines
@@ -123,6 +146,7 @@ class Cache:
         self.set_count = self.block_count // set_width # number of sets
         assert block_size >= 8
         assert replacement in ["LRU", "Random","FIFO","LFU"]
+        assert prefetching in ["Never", "Always", "Miss","Tagged"]
         assert write_hit in ["WT", "WB"]
         assert write_miss in ["WA", "NA"]
         assert bypass in [True, False]
@@ -136,7 +160,8 @@ class Cache:
         self.next_level_counter = 0     # access to next level
         self.miss_counter = 0           # miss at this level
         self.replacement_counter = 0    # replacement at this level
-        #self.cold_miss_cnt = 0
+        self.prefetchhit = 0
+        self.cold_miss_cnt = 0
 
         # construct cache
         self.name = name
@@ -144,10 +169,12 @@ class Cache:
         self.block_size = block_size            # size of a block
         self.set_width = set_width              # how many blocks in a set
         self.replacement = replacement          # replacement policy
+        self.prefetching = prefetching          # prefetching policy
         self.write_hit = write_hit              # write hit policy
         self.write_miss = write_miss            # write miss policy
-        self.access_latency = bus_latency + hit_latency    # access latency
         self.bus_latency = bus_latency          # bus latency
+        self.hit_latency = hit_latency          # hit latency
+        self.access_latency = access_latency    # access latency
         self.memory_latency = memory_latency    # main memory latency
         self.next_level = next_level            # next level cache
         self.bypass = bypass                    # bypass this cache
@@ -158,9 +185,7 @@ class Cache:
 
         self.bypass_status = []
         for i in range(1024):
-            self.bypass_status.append({"miss_count": 0, 
-                                       "access_count": 0})
-        
+            self.bypass_status.append({"miss_count": 0, "access_count": 0})
 
     def determine_bypass(self, address):
         # optimal bypass threshold 1 - hit_latency / next_latency
@@ -180,7 +205,8 @@ class Cache:
         if miss is True:
             self.bypass_status[add]['miss_count'] += 1
 
-    def read_from_next(self, address):
+    def read_from_next(self, address, prefetchFlag):
+
         """
         Read from the next level
         """
@@ -189,7 +215,7 @@ class Cache:
             return self.memory_latency
         else:
             # next level is another cache
-            return self.next_level.read(address)
+            return self.next_level.read(address, prefetchFlag)
 
     def write_to_next(self, address):
         """
@@ -215,6 +241,10 @@ class Cache:
         # test the tag
         tag_lookup_result = target_set.lookup(tag)
         self.access_counter += 1
+        if self.prefetching == 'Always':
+            self.read(address + 64, True)
+            self.read(address + 64*2, True)
+            self.read(address + 64*3, True)
         if tag_lookup_result is not None:
             # write HIT
             self.bypass_record(address, False)
@@ -228,6 +258,14 @@ class Cache:
                 # only write to current level and mark dirty
                 target_set.mark_dirty(tag_lookup_result)
                 target_set.update_access_time(tag_lookup_result)
+                #update access count
+                target_set.update_access_count(tag_lookup_result,True)
+                if target_set.lines[tag_lookup_result].prefetchtag == 1:
+                    self.prefetchhit += 1
+                    if self.prefetching =='Tagged':
+                        self.read(address + 64, True)
+                        #self.read(address + 64*2, True)
+                        #self.read(address + 64*3, True)
                 return self.access_latency
         else:
             # write MISS
@@ -236,15 +274,17 @@ class Cache:
             if self.write_miss == "WA":
                 # write ALLOCATE
                 # just use read() to load the block and retry
-                tot_latency = self.read(address) - self.access_latency
-                self.miss_counter -= 1
-                self.access_counter -= 1
+                tot_latency = self.read(address, False) - self.access_latency
                 # use read() to allocate the block, no real read operation
                 # intended, so remove one
-                tot_latency += self.write(address)
+                self.miss_counter -= 1
                 self.access_counter -= 1
                 # use write() to resume write operation after allocating,
-                # there's still only one write operation ongoing
+                # there's still only one write operation ongoing        
+                tot_latency += self.write(address)
+                #set the access count to 1
+                tag_lookup_result = target_set.lookup(tag)
+                target_set.update_access_count(tag_lookup_result, False)
                 return tot_latency
             elif self.write_miss == "NA":
                 # write NO-ALLOCATE
@@ -253,7 +293,8 @@ class Cache:
 
 
 
-    def read(self, address):
+    def read(self, address,prefetchFlag):
+
         """
         Read from this level
         Returns the latency
@@ -270,17 +311,33 @@ class Cache:
         
         # test the tag
         tag_lookup_result = target_set.lookup(tag)
-        self.access_counter += 1
+        if prefetchFlag == False:
+            self.access_counter += 1
+
+        if self.prefetching == 'Always' and prefetchFlag == False:
+            self.read(address+64, True)
+            self.read(address + 64*2, True)
+            self.read(address + 64*3, True)
         if tag_lookup_result is not None:
             # cache HIT
             # update last used time
             self.bypass_record(address, False)
             target_set.update_access_time(tag_lookup_result)
+            #update access count(hit)
+            target_set.update_access_count(tag_lookup_result,True)
+            #update fetchtag
+            if prefetchFlag == False and target_set.lines[tag_lookup_result].prefetchtag == 1:
+                self.prefetchhit += 1
+                if self.prefetching == 'Tagged':
+                    self.read(address + 64, True)
+                    #self.read(address + 64*2, True)
+                    #self.read(address + 64*3, True)
             return self.access_latency
         else:
             # cache MISS
             self.bypass_record(address, True)
-            self.miss_counter += 1
+            if prefetchFlag == False:
+                self.miss_counter += 1
             # check for empty slot
             empty_find_result = target_set.find_empty()
             fetch_destination = None
@@ -289,24 +346,42 @@ class Cache:
             if empty_find_result is not None:
                 # empty slot available
                 # new data will reside in the empty slot
-                #self.cold_miss_cnt += 1
+                self.cold_miss_cnt += 1
                 fetch_destination = empty_find_result
             else:
                 # no empty slot, have to replace
                 self.replacement_counter += 1
+
                 replacement_policy = {'LRU':target_set.find_lru(),
                                       'Random':target_set.find_random(),
-                                      'FIFO':target_set.find_fifo()}
+                                      'FIFO':target_set.find_fifo(),
+                                      'LFU':target_set.find_lfu()}
                 fetch_destination = replacement_policy[self.replacement]
+
                 if target_set.check_dirty(fetch_destination) is True:
                     # destination is dirty, write back before replacing
                     self.next_level_counter += 1
                     next_level_latency += self.write_to_next(target_set.lines[fetch_destination].address)
             self.next_level_counter += 1
-            next_level_latency += self.read_from_next(address)
+            next_level_latency += self.read_from_next(address,prefetchFlag)
             target_set.update_line(fetch_destination, tag, address)
             # update last access time
             target_set.update_access_time(fetch_destination)
             # update fill in time
             target_set.update_fill_in_time(fetch_destination)
+            #update access count(miss)
+            target_set.update_access_count(fetch_destination,False)
+            #update fetchtag
+            if prefetchFlag == True:
+                target_set.lines[fetch_destination].prefetchtag = 1
+            else:
+                target_set.lines[fetch_destination].prefetchtag = 0
+            if self.prefetching == 'Miss' and prefetchFlag == False:
+                self.read(address + 64, True)
+                self.read(address + 64*2, True)
+                self.read(address + 64*3, True)
+            if self.prefetching == 'Tagged' and prefetchFlag == False:
+                self.read(address + 64, True)
+                #self.read(address + 64*2, True)
+                #self.read(address + 64*3, True)
             return self.access_latency + next_level_latency
